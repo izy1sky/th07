@@ -111,6 +111,19 @@ The game still runs its simulation at a fixed 60 Hz like the original; these
 changes reduce the edge cases where input is delayed or dropped, not the
 inherent one-frame tick latency of the original game.
 
+### Running the web build
+
+Do **not** double-click `th07.html`. Browsers block local `file://` access to
+the Emscripten JS/WASM/data files, which is why the page stays white with a
+frozen progress bar. Serve the build directory over HTTP instead:
+
+- Windows: `.\serve-web.ps1`
+- Linux/macOS: `./serve-web.sh`
+
+Then open `http://localhost:8123/th07.html` in a WebGL2-capable browser.
+The first load downloads the ~455 MB asset bundle (`th07.data`), so the
+progress bar can take a while to fill.
+
 ## Todo
 
 - Try to get the text rendering closer to the original
