@@ -188,12 +188,12 @@
         <script>
             // Debug backdoor console (F9). Commands:
             //   finish [score]    - jump to the result screen with the given score
-            //   stage <1-8>       - jump to a stage (keeps score/lives/bombs)
-            //   spell <n>         - jump to the n-th spellcard (semantic)
-            //   midboss           - spawn/start the midboss
-            //   boss              - spawn/start the final boss
-            //   wave <n>          - run the n-th enemy wave (semantic)
-            //   timeline <n>      - raw: run ECL timeline n
+            //   stage <1-8>       - enter a stage (keeps score/lives/bombs)
+            //   spell <n>         - jump to the n-th spellcard (auto-jumps to boss)
+            //   midboss           - restart current stage at the midboss entrance
+            //   boss              - restart current stage at the final boss entrance
+            //   wave <n>          - restart current stage at the n-th enemy wave
+            //   timeline <n>      - restart current stage at ECL timeline n
             //   sub <id>          - raw: call ECL sub id on the active boss
             //   help              - list commands
             (function () {

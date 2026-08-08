@@ -153,12 +153,16 @@ it (the game pauses while the console is open), then type:
 
 - `finish [score]` - instantly jump to the result screen with the given score
 - `stage <1-8>` - jump to a stage (keeps score/lives/bombs)
-- `spell <n>` - jump to the n-th spellcard of the current stage
-- `midboss` / `boss` - spawn/start the midboss / final boss
-- `wave <n>` - run the n-th enemy wave
-- `timeline <n>` - raw: force-run an ECL timeline
+- `spell <n>` - jump to the n-th spellcard (auto-jumps to the boss first)
+- `midboss` / `boss` - restart the current stage at the midboss / final boss entrance
+- `wave <n>` - restart the current stage at the n-th enemy wave
+- `timeline <n>` - restart the current stage at ECL timeline n
 - `sub <id>` - raw: call an ECL sub on the active boss
 - `help` - list commands
+
+Stage-related jumps rebuild the current stage exactly like entering it and
+fast-forward all ECL timelines to the target frame, so the scene is clean
+instead of being force-injected mid-frame.
 
 The same function is exposed on the browser console as
 `window.__th07Debug.finish(score)`. It uses the normal stage-clear transition

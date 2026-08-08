@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.1] - 2026-08-09
+
+### Debug 语义跳转重构
+
+- `midboss` / `boss` 不再依赖“timeline 首指令是 opcode 2/3”的旧启发式：改为扫描 ECL
+  子程序中真正的 boss 标记（指令 99），按 boss 首次出场定位；3~8 关此前完全找不到 boss
+  的问题已修复；
+- `stage` / `timeline` / `wave` / `spell` 等跳转统一为“重建当前关卡 + 快进所有
+  timeline 到目标帧”，不再在旧场景里强插指令，避免画面生硬；
+- `spell <n>` 在无 boss 在场时会先跳到最终 boss 再释放符卡；
+- 每条跳转命令会在控制台打印目标 timeline 与帧号，方便核对。
+
 ## [0.2.0] - 2026-08-09
 
 ### Web 包体压缩（BGM 转 MP3 流式播放）
