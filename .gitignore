@@ -3,6 +3,7 @@
 build
 build.out.log
 build.err.log
+game/
 thirdparty/*
 resources/custom.exe
 resources/th07.exe
