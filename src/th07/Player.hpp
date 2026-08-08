@@ -113,8 +113,8 @@ struct PlayerBombInfo
     BombCallback bombFocusCalc;
     BombCallback drawFocus;
     PlayerBombSubInfo subInfo[128];
-    Float3 startPos;
 };
+C_ASSERT(sizeof(PlayerBombInfo) == 0xa142c);
 
 struct PlayerBullet
 {
@@ -298,6 +298,7 @@ struct Player
     i32 unused_16a18;
     i32 unused_16a1c;
     PlayerBombInfo bombInfo;
+    Float3 startPos;
     f32 optionAngle;
     ChainElem *calcChain;
     ChainElem *drawChain1;

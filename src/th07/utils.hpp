@@ -39,6 +39,11 @@ inline void EightBytes()
     i32 idk[2];
 }
 
+inline void TwentyFourBytes()
+{
+    i32 idk[6];
+}
+
 inline void ThirtyTwoBytes()
 {
     i32 idk[8];

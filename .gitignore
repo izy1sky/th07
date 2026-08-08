@@ -4,6 +4,11 @@ build
 build.out.log
 build.err.log
 game/
+cvdump.txt
+cvdump2.txt
+patches/parse.py.orig
+reccmp-diffs/
+reccmp_remaining.csv
 thirdparty/*
 resources/custom.exe
 resources/th07.exe

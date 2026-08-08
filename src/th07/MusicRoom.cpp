@@ -417,6 +417,7 @@ ZunResult MusicRoom::RegisterChain()
 
     musicRoom->drawChain = g_Chain.CreateElem((ChainCallback)OnDraw);
     musicRoom->drawChain->arg = musicRoom;
+    UselessStack::TwentyFourBytes();
     g_Chain.AddToDrawChain(musicRoom->drawChain, 0);
     return ZUN_SUCCESS;
 }

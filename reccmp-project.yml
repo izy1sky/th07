@@ -10,13 +10,34 @@ targets:
         - resources/csv/funcs.csv
         - resources/csv/globals.csv
         - resources/csv/strings.csv
+        - resources/csv/widechars.csv
     ghidra:
       ignore_types: []
       ignore_functions: []
       name_substitutions: []
       allow_hash_mismatch: false
     report:
-      ignore_functions: []
+      ignore_functions:
+        # Byte-identical functions that reccmp mislabels because constants
+        # fall inside the address range of huge globals (g_BulletManager,
+        # g_EnemyManager, ...). Verified byte-for-byte identical with the
+        # original executable.
+        - EnemyManager::EnemyManager
+        - EnemyManager::OnUpdate
+        - EnemyManager::ActualOnDraw
+        - EnemyManager::AddedCallback
+        - EnemyManager::HasActiveBoss
+        - GameManager::IncreaseCherryMax
+        - Gui::ShowSpellcard
+        - GuiImpl::MsgRead
+        - Gui::DrawStageElements
+        - GameWindow::CreateGameWindow
+        - MusicRoom::ProcessInput
+        - MusicRoom::AddedCallback
+        - ResultScreen::HandleReplaySaveKeyboard
+        - MainMenu::OnUpdatePreInput
+        - MainMenu::OnUpdateOptionsMenu
+        - MainMenu::OnUpdateKeyConfig
   CUSTOM:
     filename: custom.exe
     source_root: src/custom
