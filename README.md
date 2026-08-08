@@ -128,6 +128,19 @@ Then open `http://localhost:8123/th07.html` in a WebGL2-capable browser.
 The first load downloads the ~455 MB asset bundle (`th07.data`), so the
 progress bar can take a while to fill.
 
+### Debug backdoor
+
+The web build includes a small debug console for testing. Press **F9** to open
+it, then type:
+
+- `finish [score]` - instantly jump to the result screen with the given score
+- `help` - list commands
+
+The same function is exposed on the browser console as
+`window.__th07Debug.finish(score)`. It uses the normal stage-clear transition
+(`GameManager::CutChain()` + `ResultScreen::RegisterChain(1)`), so the result
+screen behaves like a real clear.
+
 ## Todo
 
 - Try to get the text rendering closer to the original

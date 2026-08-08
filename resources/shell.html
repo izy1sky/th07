@@ -51,6 +51,17 @@
             class="canvas"
             oncontextmenu="event.preventDefault()"
         ></canvas>
+        <div
+            id="th07-debug"
+            style="display:none;position:fixed;left:8px;bottom:8px;z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;font:12px monospace;padding:8px;border-radius:4px;"
+        >
+            <div id="th07-debug-out"></div>
+            <input
+                id="th07-debug-input"
+                style="width:280px;background:#000;color:#0f0;border:1px solid #0f0;"
+                placeholder="debug: finish [score] / help (F9)"
+            />
+        </div>
         <script>
             var progressElement = document.getElementById("progress");
             var Module = {
@@ -163,6 +174,66 @@
                 event.preventDefault();
                 event.returnValue = true;
             });
+        </script>
+
+        <script>
+            // Debug backdoor console (F9). Commands:
+            //   finish [score] - jump to the result screen with the given score
+            //   help          - list commands
+            (function () {
+                var box = document.getElementById("th07-debug");
+                var out = document.getElementById("th07-debug-out");
+                var input = document.getElementById("th07-debug-input");
+
+                function log(text) {
+                    out.textContent = text;
+                }
+
+                function run(cmd) {
+                    var parts = cmd.trim().split(/\s+/);
+                    var c = parts[0];
+                    var n = parts.length > 1 ? parseInt(parts[1], 10) : 0;
+                    if (isNaN(n)) n = 0;
+
+                    if (c === "finish") {
+                        if (Module && Module._ThDebugFinish) {
+                            Module._ThDebugFinish(n | 0);
+                            log("finish -> result screen (score " + (n | 0) + ")");
+                        } else {
+                            log("ThDebugFinish not exported yet");
+                        }
+                    } else if (c === "help") {
+                        log("commands: finish [score], help");
+                    } else {
+                        log("unknown: " + c + " (try help)");
+                    }
+                }
+
+                window.addEventListener("keydown", function (e) {
+                    if (e.key === "F9") {
+                        e.preventDefault();
+                        var show = box.style.display === "none";
+                        box.style.display = show ? "block" : "none";
+                        if (show) input.focus();
+                    }
+                });
+
+                input.addEventListener("keydown", function (e) {
+                    if (e.key === "Enter") {
+                        run(input.value);
+                        input.value = "";
+                    } else if (e.key === "Escape") {
+                        box.style.display = "none";
+                    }
+                });
+
+                window.__th07Debug = {
+                    finish: function (n) {
+                        if (Module && Module._ThDebugFinish) Module._ThDebugFinish(n | 0);
+                    },
+                    help: log,
+                };
+            })();
         </script>
 
         {{{ SCRIPT }}}
