@@ -1,6 +1,8 @@
 *.lock
 .venv*
 build
+build.out.log
+build.err.log
 thirdparty/*
 resources/custom.exe
 resources/th07.exe
