@@ -15,6 +15,7 @@ scripts/__pycache__/
 compile_commands.json
 
 # Working-tree leftovers from the decomp (main) branch, not part of this port.
+s -ExecutionPolicy*
 build.err.log
 build.out.log
 cvdump.txt
