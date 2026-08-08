@@ -11,6 +11,10 @@ extern "C"
 // screen. score is clamped to [0, 999999999] by GameManager::CutChain.
 void ThDebugFinish(i32 score);
 
+// Freeze/unfreeze the game while the debug console is open so typed keys do
+// not reach gameplay.
+void ThDebugSetPaused(i32 paused);
+
 #ifdef __cplusplus
 }
 #endif

@@ -131,7 +131,7 @@ progress bar can take a while to fill.
 ### Debug backdoor
 
 The web build includes a small debug console for testing. Press **F9** to open
-it, then type:
+it (the game pauses while the console is open), then type:
 
 - `finish [score]` - instantly jump to the result screen with the given score
 - `help` - list commands

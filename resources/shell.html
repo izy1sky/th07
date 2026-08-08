@@ -164,6 +164,15 @@
             window.addEventListener(
                 "keydown",
                 (e) => {
+                    var active = document.activeElement;
+                    if (
+                        active &&
+                        (active.tagName === "INPUT" ||
+                            active.tagName === "TEXTAREA" ||
+                            active.isContentEditable)
+                    ) {
+                        return;
+                    }
                     if (gameKeys.has(e.key) || e.code.startsWith("Arrow") || e.code.startsWith("Numpad")) {
                         e.preventDefault();
                     }
@@ -189,6 +198,16 @@
                     out.textContent = text;
                 }
 
+                function setOpen(show) {
+                    box.style.display = show ? "block" : "none";
+                    if (show) {
+                        input.focus();
+                        if (Module && Module._ThDebugSetPaused) Module._ThDebugSetPaused(1);
+                    } else {
+                        if (Module && Module._ThDebugSetPaused) Module._ThDebugSetPaused(0);
+                    }
+                }
+
                 function run(cmd) {
                     var parts = cmd.trim().split(/\s+/);
                     var c = parts[0];
@@ -199,6 +218,7 @@
                         if (Module && Module._ThDebugFinish) {
                             Module._ThDebugFinish(n | 0);
                             log("finish -> result screen (score " + (n | 0) + ")");
+                            setOpen(false);
                         } else {
                             log("ThDebugFinish not exported yet");
                         }
@@ -212,9 +232,7 @@
                 window.addEventListener("keydown", function (e) {
                     if (e.key === "F9") {
                         e.preventDefault();
-                        var show = box.style.display === "none";
-                        box.style.display = show ? "block" : "none";
-                        if (show) input.focus();
+                        setOpen(box.style.display === "none");
                     }
                 });
 
@@ -223,7 +241,7 @@
                         run(input.value);
                         input.value = "";
                     } else if (e.key === "Escape") {
-                        box.style.display = "none";
+                        setOpen(false);
                     }
                 });
 
