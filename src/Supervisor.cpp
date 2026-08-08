@@ -131,7 +131,7 @@ u32 Supervisor::OnUpdate(Supervisor *arg)
     if (!g_GameManager.slowModeSlowActive)
     {
         g_LastFrameRawInput = g_CurFrameRawInput;
-        g_CurFrameRawInput = Controller::GetInput();
+        g_CurFrameRawInput = Controller::GetInput() | Controller::ConsumePendingPressedButtons();
         g_IsEighthFrameOfHeldInput = 0;
         if (g_LastFrameRawInput == g_CurFrameRawInput)
         {
@@ -155,7 +155,7 @@ u32 Supervisor::OnUpdate(Supervisor *arg)
     }
     else
     {
-        g_CurFrameRawInput |= Controller::GetInput();
+        g_CurFrameRawInput |= Controller::GetInput() | Controller::ConsumePendingPressedButtons();
     }
     if (arg->wantedState != arg->curState)
     {

@@ -136,6 +136,11 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             }
         }
         break;
+    case SDL_EVENT_KEY_DOWN:
+        // Record the press immediately so that quick taps are not lost even if
+        // the key is released between two 60 Hz logic ticks.
+        Controller::RecordKeyDown(event->key.scancode);
+        break;
     case SDL_EVENT_FINGER_DOWN:
         Touch::FingerDown(event->tfinger);
         break;

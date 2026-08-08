@@ -91,6 +91,26 @@ During gameplay, move the player around with your finger (the player moves relat
 
 Note that you cannot save replays when using touch controls. It shows the "you cannot save a replay if you've used a continue," but this shows up regardless if you've used a continue or not if you've used touch controls at any point during gameplay.
 
+## Web input latency improvements
+
+This fork adds three changes aimed at reducing perceived input latency in the
+browser compared to the original EoSD web port:
+
+- **Keydown edge buffering**: key presses are recorded immediately in the SDL
+  event callback and merged into the next 60 Hz logic tick, so quick taps that
+  happen entirely between two ticks are not lost (previously they could be
+  missed when polling `SDL_GetKeyboardState` only at tick time).
+- **Browser key handling**: the shell page focuses the canvas on load/click and
+  calls `preventDefault()` for game keys (arrows, space, z/x/shift, escape,
+  numpad, etc.) so the page cannot scroll or steal input.
+- **Touch controls** (already present upstream) are event-driven and kept as the
+  low-latency path for touch devices; the finger-delta accumulator is consumed
+  exactly once per logic tick.
+
+The game still runs its simulation at a fixed 60 Hz like the original; these
+changes reduce the edge cases where input is delayed or dropped, not the
+inherent one-frame tick latency of the original game.
+
 ## Todo
 
 - Try to get the text rendering closer to the original

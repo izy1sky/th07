@@ -5,6 +5,7 @@
 .venv*
 assets
 build
+build-web/
 thirdparty/*
 resources/custom.exe
 resources/th07.exe
@@ -12,6 +13,20 @@ reccmp-user.yml
 reccmp-build.yml
 scripts/__pycache__/
 compile_commands.json
+
+# Working-tree leftovers from the decomp (main) branch, not part of this port.
+build.err.log
+build.out.log
+cvdump.txt
+cvdump2.txt
+game/
+patches/
+pyproject.toml
+reccmp-diffs/
+reccmp_remaining.csv
+reccmp-project.yml
+resources/csv/
+scripts/
 
 android/.gradle
 android/.idea

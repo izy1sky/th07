@@ -1,5 +1,7 @@
 #pragma once
 
+#include <SDL3/SDL_scancode.h>
+
 #include "inttypes.hpp"
 
 enum TouhouButton
@@ -49,4 +51,11 @@ u8 *GetControllerState();
 u16 GetInput();
 void ResetKeyboard();
 u32 SetButton(u16* outButtons, i32 controllerButton, u32 thButton);
+
+// Web input latency helpers: keydown events are recorded immediately and
+// merged into the next logic tick, so quick taps that happen entirely between
+// two 60 Hz ticks are not lost.
+u16 ButtonBitsFromScancode(SDL_Scancode scancode);
+void RecordKeyDown(SDL_Scancode scancode);
+u16 ConsumePendingPressedButtons();
 } // namespace Controller

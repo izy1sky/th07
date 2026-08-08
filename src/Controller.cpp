@@ -10,6 +10,7 @@
 #include "utils.hpp"
 
 static u16 g_AutoFocusTimer;
+static u16 g_PendingPressedButtons;
 
 #define KEY_PRESSED(scancode, thButton) (keys[scancode] ? thButton : 0)
 #define JOYSTICK_MIDPOINT(min, max) ((min + max) / 2)
@@ -183,6 +184,75 @@ u16 Controller::GetInput()
     buttons |= KEY_PRESSED(SDL_SCANCODE_RETURN, TH_BUTTON_ENTER);
 
     return GetControllerInput(buttons) | Touch::GetButtonBits();
+}
+
+u16 Controller::ButtonBitsFromScancode(SDL_Scancode scancode)
+{
+    switch (scancode)
+    {
+    case SDL_SCANCODE_UP:
+        return TH_BUTTON_UP;
+    case SDL_SCANCODE_DOWN:
+        return TH_BUTTON_DOWN;
+    case SDL_SCANCODE_LEFT:
+        return TH_BUTTON_LEFT;
+    case SDL_SCANCODE_RIGHT:
+        return TH_BUTTON_RIGHT;
+    case SDL_SCANCODE_KP_8:
+        return TH_BUTTON_UP;
+    case SDL_SCANCODE_KP_2:
+        return TH_BUTTON_DOWN;
+    case SDL_SCANCODE_KP_4:
+        return TH_BUTTON_LEFT;
+    case SDL_SCANCODE_KP_6:
+        return TH_BUTTON_RIGHT;
+    case SDL_SCANCODE_KP_7:
+        return TH_BUTTON_UP_LEFT;
+    case SDL_SCANCODE_KP_9:
+        return TH_BUTTON_UP_RIGHT;
+    case SDL_SCANCODE_KP_1:
+        return TH_BUTTON_DOWN_LEFT;
+    case SDL_SCANCODE_KP_3:
+        return TH_BUTTON_DOWN_RIGHT;
+    case SDL_SCANCODE_HOME:
+        return TH_BUTTON_HOME;
+    case SDL_SCANCODE_D:
+        return TH_BUTTON_D;
+    case SDL_SCANCODE_Z:
+        return TH_BUTTON_SHOOT;
+    case SDL_SCANCODE_X:
+        return TH_BUTTON_BOMB;
+    case SDL_SCANCODE_LSHIFT:
+    case SDL_SCANCODE_RSHIFT:
+        return TH_BUTTON_FOCUS;
+    case SDL_SCANCODE_ESCAPE:
+        return TH_BUTTON_MENU;
+    case SDL_SCANCODE_LCTRL:
+    case SDL_SCANCODE_RCTRL:
+        return TH_BUTTON_SKIP;
+    case SDL_SCANCODE_Q:
+        return TH_BUTTON_Q;
+    case SDL_SCANCODE_S:
+        return TH_BUTTON_S;
+    case SDL_SCANCODE_R:
+        return TH_BUTTON_RESET;
+    case SDL_SCANCODE_RETURN:
+        return TH_BUTTON_ENTER;
+    default:
+        return 0;
+    }
+}
+
+void Controller::RecordKeyDown(SDL_Scancode scancode)
+{
+    g_PendingPressedButtons |= ButtonBitsFromScancode(scancode);
+}
+
+u16 Controller::ConsumePendingPressedButtons()
+{
+    u16 pressed = g_PendingPressedButtons;
+    g_PendingPressedButtons = 0;
+    return pressed;
 }
 
 void Controller::ResetKeyboard()

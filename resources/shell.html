@@ -107,6 +107,56 @@
                     });
                 },
             };
+
+            // Make sure the canvas can receive keyboard input immediately.
+            var canvas = document.getElementById("canvas");
+            canvas.tabIndex = 0;
+            canvas.addEventListener("pointerdown", () => canvas.focus());
+            window.addEventListener("load", () => canvas.focus());
+
+            // Stop the browser from stealing game keys (page scroll, quick
+            // find, save dialog, etc.). The game polls SDL_GetKeyboardState,
+            // so preventing default here keeps browser latency out of the loop.
+            var gameKeys = new Set([
+                "ArrowUp",
+                "ArrowDown",
+                "ArrowLeft",
+                "ArrowRight",
+                " ",
+                "Home",
+                "End",
+                "PageUp",
+                "PageDown",
+                "Enter",
+                "Escape",
+                "z",
+                "x",
+                "q",
+                "s",
+                "d",
+                "r",
+                "Shift",
+                "Control",
+                "Numpad0",
+                "Numpad1",
+                "Numpad2",
+                "Numpad3",
+                "Numpad4",
+                "Numpad5",
+                "Numpad6",
+                "Numpad7",
+                "Numpad8",
+                "Numpad9",
+            ]);
+            window.addEventListener(
+                "keydown",
+                (e) => {
+                    if (gameKeys.has(e.key) || e.code.startsWith("Arrow") || e.code.startsWith("Numpad")) {
+                        e.preventDefault();
+                    }
+                },
+                { passive: false },
+            );
             window.addEventListener("beforeunload", (event) => {
                 event.preventDefault();
                 event.returnValue = true;
