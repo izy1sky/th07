@@ -59,7 +59,7 @@
             <input
                 id="th07-debug-input"
                 style="width:280px;background:#000;color:#0f0;border:1px solid #0f0;"
-                placeholder="debug: finish [score] / help (F9)"
+                placeholder="debug: finish / stage / timeline / boss / help (F9)"
             />
         </div>
         <script>
@@ -187,8 +187,11 @@
 
         <script>
             // Debug backdoor console (F9). Commands:
-            //   finish [score] - jump to the result screen with the given score
-            //   help          - list commands
+            //   finish [score]    - jump to the result screen with the given score
+            //   stage <1-8>       - jump to a stage (keeps score/lives/bombs)
+            //   timeline <n>      - force-run ECL timeline n (wave / boss spawn)
+            //   boss <subid>      - call ECL sub on the active boss (spellcards)
+            //   help              - list commands
             (function () {
                 var box = document.getElementById("th07-debug");
                 var out = document.getElementById("th07-debug-out");
@@ -222,8 +225,23 @@
                         } else {
                             log("ThDebugFinish not exported yet");
                         }
+                    } else if (c === "stage") {
+                        if (Module && Module._ThDebugStage) {
+                            Module._ThDebugStage(n | 0);
+                            log("jump to stage " + (n | 0));
+                        }
+                    } else if (c === "timeline") {
+                        if (Module && Module._ThDebugTimeline) {
+                            Module._ThDebugTimeline(n | 0);
+                            log("run timeline " + (n | 0));
+                        }
+                    } else if (c === "boss") {
+                        if (Module && Module._ThDebugBoss) {
+                            Module._ThDebugBoss(n | 0);
+                            log("call boss sub " + (n | 0));
+                        }
                     } else if (c === "help") {
-                        log("commands: finish [score], help");
+                        log("commands: finish [score], stage <1-8>, timeline <n>, boss <subid>, help");
                     } else {
                         log("unknown: " + c + " (try help)");
                     }
@@ -274,6 +292,15 @@
                 window.__th07Debug = {
                     finish: function (n) {
                         if (Module && Module._ThDebugFinish) Module._ThDebugFinish(n | 0);
+                    },
+                    stage: function (n) {
+                        if (Module && Module._ThDebugStage) Module._ThDebugStage(n | 0);
+                    },
+                    timeline: function (n) {
+                        if (Module && Module._ThDebugTimeline) Module._ThDebugTimeline(n | 0);
+                    },
+                    boss: function (n) {
+                        if (Module && Module._ThDebugBoss) Module._ThDebugBoss(n | 0);
                     },
                     help: log,
                 };
