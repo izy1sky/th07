@@ -19,6 +19,10 @@
 #include "dxutil.hpp"
 #include "pbg4/Lzss.hpp"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 namespace fs = std::filesystem;
 
 static const f32 g_DifficultyWeightsList[] = {-30.0f, -10.0f, 20.0f, 30.0f, 30.0f};
@@ -2543,6 +2547,13 @@ ZunResult ResultScreen::DeletedCallback(ResultScreen *arg)
 ZunResult ResultScreen::RegisterChain(u32 type)
 {
     ResultScreen *resultScreen = new ResultScreen;
+#ifdef __EMSCRIPTEN__
+    // Toy 集成：把结算信息交给 JS 桥（历史记录；成绩上传由页面按钮触发）
+    EM_ASM(
+        { if (window.ToyBridge && ToyBridge.onRunEnded) ToyBridge.onRunEnded($0, $1, $2, $3, $4, $5); },
+        (i32)type, (i32)g_GameManager.globals->score, g_GameManager.currentStage,
+        g_GameManager.difficulty, g_GameManager.character, g_GameManager.shotType);
+#endif
     Supervisor::DebugPrint("Stg.PlayTimeAll = %d\r\n", g_GameManager.playTimeAll);
     if (type == 1)
     {

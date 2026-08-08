@@ -84,6 +84,11 @@ if(EMSCRIPTEN)
         "${CMAKE_SOURCE_DIR}/resources/shell.html"
     )
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/toy/toy-bridge.js"
+        "${CMAKE_BINARY_DIR}/toy-bridge.js"
+        COPYONLY
+    )
 endif()
 
 if(NOT ANDROID AND NOT EMSCRIPTEN AND NOT APPLE)
