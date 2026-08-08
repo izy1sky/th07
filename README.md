@@ -106,6 +106,10 @@ browser compared to the original EoSD web port:
 - **Touch controls** (already present upstream) are event-driven and kept as the
   low-latency path for touch devices; the finger-delta accumulator is consumed
   exactly once per logic tick.
+- **FPS counter** now reports the fixed 60 Hz logic rate instead of the display
+  render rate, so on high-refresh monitors it shows ~60 (not 120/160). Game
+  speed is unaffected: the simulation always runs at 60 logic ticks per second
+  regardless of how many frames the browser renders.
 
 The game still runs its simulation at a fixed 60 Hz like the original; these
 changes reduce the edge cases where input is delayed or dropped, not the

@@ -116,6 +116,10 @@ void AnmManager::ReleaseVertexBuffer()
 
 u32 Supervisor::OnUpdate(Supervisor *arg)
 {
+    // Count logic ticks here: the FPS counter should reflect the fixed 60 Hz
+    // simulation rate, not the render rate of the display.
+    g_NumFramesSinceLastTime += 1 + (u32)g_Supervisor.cfg.frameskipConfig;
+
     g_AnmManager->SetVertexShader(255);
     g_AnmManager->SetSprite(NULL);
     g_AnmManager->SetTexture(0);
@@ -654,8 +658,6 @@ void Supervisor::DrawFpsCounter(i32 param_1)
 
     if (!g_GameManager.slowModeSlowActive)
     {
-        g_NumFramesSinceLastTime += 1 + (u32)g_Supervisor.cfg.frameskipConfig;
-
         if (g_Supervisor.perfFrequency == 0)
         {
             static u64 g_LastTime = SDL_GetTicks();
