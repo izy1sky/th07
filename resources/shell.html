@@ -189,8 +189,12 @@
             // Debug backdoor console (F9). Commands:
             //   finish [score]    - jump to the result screen with the given score
             //   stage <1-8>       - jump to a stage (keeps score/lives/bombs)
-            //   timeline <n>      - force-run ECL timeline n (wave / boss spawn)
-            //   boss <subid>      - call ECL sub on the active boss (spellcards)
+            //   spell <n>         - jump to the n-th spellcard (semantic)
+            //   midboss           - spawn/start the midboss
+            //   boss              - spawn/start the final boss
+            //   wave <n>          - run the n-th enemy wave (semantic)
+            //   timeline <n>      - raw: run ECL timeline n
+            //   sub <id>          - raw: call ECL sub id on the active boss
             //   help              - list commands
             (function () {
                 var box = document.getElementById("th07-debug");
@@ -235,13 +239,34 @@
                             Module._ThDebugTimeline(n | 0);
                             log("run timeline " + (n | 0));
                         }
+                    } else if (c === "spell") {
+                        if (Module && Module._ThDebugSpell) {
+                            var r = Module._ThDebugSpell(n | 0);
+                            var msg = ["ok", "no boss active", "no ECL loaded", "no such spell"][-r] || "?";
+                            log("spell " + (n | 0) + " -> " + msg);
+                        }
+                    } else if (c === "midboss") {
+                        if (Module && Module._ThDebugMidboss) {
+                            Module._ThDebugMidboss();
+                            log("midboss timeline run");
+                        }
                     } else if (c === "boss") {
-                        if (Module && Module._ThDebugBoss) {
-                            Module._ThDebugBoss(n | 0);
+                        if (Module && Module._ThDebugFinalBoss) {
+                            Module._ThDebugFinalBoss();
+                            log("final boss timeline run");
+                        }
+                    } else if (c === "wave") {
+                        if (Module && Module._ThDebugWave) {
+                            Module._ThDebugWave(n | 0);
+                            log("run wave " + (n | 0));
+                        }
+                    } else if (c === "sub") {
+                        if (Module && Module._ThDebugSub) {
+                            Module._ThDebugSub(n | 0);
                             log("call boss sub " + (n | 0));
                         }
                     } else if (c === "help") {
-                        log("commands: finish [score], stage <1-8>, timeline <n>, boss <subid>, help");
+                        log("commands: finish [score], stage <1-8>, spell <n>, midboss, boss, wave <n>, timeline <n>, sub <id>, help");
                     } else {
                         log("unknown: " + c + " (try help)");
                     }
@@ -299,8 +324,20 @@
                     timeline: function (n) {
                         if (Module && Module._ThDebugTimeline) Module._ThDebugTimeline(n | 0);
                     },
-                    boss: function (n) {
-                        if (Module && Module._ThDebugBoss) Module._ThDebugBoss(n | 0);
+                    spell: function (n) {
+                        if (Module && Module._ThDebugSpell) return Module._ThDebugSpell(n | 0);
+                    },
+                    midboss: function () {
+                        if (Module && Module._ThDebugMidboss) Module._ThDebugMidboss();
+                    },
+                    boss: function () {
+                        if (Module && Module._ThDebugFinalBoss) Module._ThDebugFinalBoss();
+                    },
+                    wave: function (n) {
+                        if (Module && Module._ThDebugWave) Module._ThDebugWave(n | 0);
+                    },
+                    sub: function (n) {
+                        if (Module && Module._ThDebugSub) Module._ThDebugSub(n | 0);
                     },
                     help: log,
                 };

@@ -135,8 +135,11 @@ it (the game pauses while the console is open), then type:
 
 - `finish [score]` - instantly jump to the result screen with the given score
 - `stage <1-8>` - jump to a stage (keeps score/lives/bombs)
-- `timeline <n>` - force-run an ECL timeline (mid-stage wave / boss spawn)
-- `boss <subid>` - call an ECL sub on the active boss (boss patterns/spellcards)
+- `spell <n>` - jump to the n-th spellcard of the current stage
+- `midboss` / `boss` - spawn/start the midboss / final boss
+- `wave <n>` - run the n-th enemy wave
+- `timeline <n>` - raw: force-run an ECL timeline
+- `sub <id>` - raw: call an ECL sub on the active boss
 - `help` - list commands
 
 The same function is exposed on the browser console as

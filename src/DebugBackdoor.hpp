@@ -25,9 +25,19 @@ void ThDebugStage(i32 stage);
 // Force-run ECL timeline n (mid-stage waves / boss spawns).
 void ThDebugTimeline(i32 n);
 
-// Call ECL subroutine subId on the first active boss (boss patterns and
-// spellcards are ECL subroutines; sub IDs come from the stage .ecl data).
-void ThDebugBoss(i32 subId);
+// Jump to the n-th spellcard of the current stage (1-based). Requires an
+// active boss. Returns 0 on success, -1 no boss, -2 no ECL, -3 no such spell.
+i32 ThDebugSpell(i32 n);
+
+// Run the first / last boss-spawn timeline (midboss / final boss).
+void ThDebugMidboss();
+void ThDebugFinalBoss();
+
+// Run the n-th enemy-wave timeline (1-based, opcode 0/1 spawns).
+void ThDebugWave(i32 n);
+
+// Raw: call ECL subroutine subId on the first active boss.
+void ThDebugSub(i32 subId);
 
 #ifdef __cplusplus
 }

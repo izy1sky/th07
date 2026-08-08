@@ -112,10 +112,125 @@ void ThDebugTimeline(i32 n)
     EnemyManager::RunEclTimeline(tl);
 }
 
+static i32 CollectTimelinesByOpcode(i32 opcodeA, i32 opcodeB, i32 *out,
+                                    i32 maxOut)
+{
+    i32 count = 0;
+    if (!g_EclManager.eclFile)
+    {
+        return 0;
+    }
+
+    for (i32 t = 0; t < g_EclManager.eclFile->timelineCount && count < maxOut; t++)
+    {
+        EclTimelineInstr *instr = g_EclManager.timelinePtr[t];
+        i32 guard = 0;
+        while (instr && instr->time >= 0 && instr->size > 0 && guard++ < 100000)
+        {
+            if (instr->opcode == opcodeA || instr->opcode == opcodeB)
+            {
+                out[count++] = t;
+                break;
+            }
+            instr = (EclTimelineInstr *)((u8 *)instr + instr->size);
+        }
+    }
+
+    return count;
+}
+
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
-void ThDebugBoss(i32 subId)
+i32 ThDebugSpell(i32 n)
+{
+    Enemy *boss = NULL;
+
+    if (!g_EclManager.eclFile)
+    {
+        return -2;
+    }
+
+    for (i32 i = 0; i < 8; i++)
+    {
+        if (g_EnemyManager.bosses[i] && g_EnemyManager.bosses[i]->active)
+        {
+            boss = g_EnemyManager.bosses[i];
+            break;
+        }
+    }
+    if (!boss)
+    {
+        return -1;
+    }
+
+    i32 found = 0;
+    for (i32 s = 0; s < g_EclManager.eclFile->subCount; s++)
+    {
+        EclRawInstr *instr = g_EclManager.subTable[s];
+        i32 guard = 0;
+        while (instr && instr->id != 1 && instr->size > 0 && guard++ < 100000)
+        {
+            if (instr->id == 90) // begin spellcard
+            {
+                found++;
+                if (found == n)
+                {
+                    g_EclManager.CallEclSub(&boss->currentContext, (i16)s);
+                    return 0;
+                }
+                break;
+            }
+            instr = (EclRawInstr *)((u8 *)instr + instr->size);
+        }
+    }
+
+    return -3;
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+void ThDebugMidboss()
+{
+    i32 timelines[8];
+    i32 count = CollectTimelinesByOpcode(2, 3, timelines, 8);
+    if (count > 0)
+    {
+        ThDebugTimeline(timelines[0]);
+    }
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+void ThDebugFinalBoss()
+{
+    i32 timelines[8];
+    i32 count = CollectTimelinesByOpcode(2, 3, timelines, 8);
+    if (count > 0)
+    {
+        ThDebugTimeline(timelines[count - 1]);
+    }
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+void ThDebugWave(i32 n)
+{
+    i32 timelines[64];
+    i32 count = CollectTimelinesByOpcode(0, 1, timelines, 64);
+    if (n >= 1 && n <= count)
+    {
+        ThDebugTimeline(timelines[n - 1]);
+    }
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+void ThDebugSub(i32 subId)
 {
     for (i32 i = 0; i < 8; i++)
     {
