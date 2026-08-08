@@ -229,6 +229,34 @@
                     }
                 }
 
+                // SDL3 attaches its keyboard listeners to the canvas. Because
+                // this script runs before the Emscripten module initializes,
+                // our canvas listener is registered first, so we can block SDL
+                // from ever seeing keys while the debug console is open - and
+                // type into the input manually without depending on DOM focus.
+                var canvasEl = document.getElementById("canvas");
+                function handleDebugKey(e) {
+                    if (box.style.display !== "block") return;
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    if (e.type === "keydown") {
+                        if (e.key === "Enter") {
+                            run(input.value);
+                            input.value = "";
+                        } else if (e.key === "Escape" || e.key === "F9") {
+                            setOpen(false);
+                        } else if (e.key === "Backspace") {
+                            input.value = input.value.slice(0, -1);
+                        } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                            input.value += e.key;
+                            input.scrollLeft = input.scrollWidth;
+                        }
+                    }
+                }
+                canvasEl.addEventListener("keydown", handleDebugKey, false);
+                canvasEl.addEventListener("keypress", handleDebugKey, false);
+                canvasEl.addEventListener("keyup", handleDebugKey, false);
+
                 window.addEventListener("keydown", function (e) {
                     if (e.key === "F9") {
                         e.preventDefault();
