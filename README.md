@@ -1,5 +1,17 @@
 # th07
 
+## v1.0.0（本 fork）
+
+这是 `some100/th07` 的个人 fork，定位为“游玩体验与原版一致”的学习版本。
+
+- 匹配率：主程序 99.51%（678 个函数；另有 16 个逐字节一致函数因 reccmp 标签误报被忽略）
+- 与原版 1.00b 对齐，可独立构建出带原版图标的 `th07.exe` 与 `custom.exe`
+- 详细改动见 [CHANGELOG.md](CHANGELOG.md)
+
+> 分支说明：`main` 为 v1.0.0；`upstream` 为上游原样快照。
+
+---
+
 <img src="resources/progress.svg" alt="th07.exe: Implemented: 100%. Accuracy: 99.38%" width="50%">
 <img src="resources/custom/progress.svg" alt="custom.exe: Implemented: 100%. Accuracy: 100%" width="50%">
 
