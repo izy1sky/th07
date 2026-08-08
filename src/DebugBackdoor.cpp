@@ -1,9 +1,12 @@
 #include "DebugBackdoor.hpp"
 
+#include "Controller.hpp"
 #include "GameManager.hpp"
 #include "GameWindow.hpp"
 #include "ResultScreen.hpp"
 #include "Supervisor.hpp"
+
+u16 g_DebugInjectedInput;
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -40,14 +43,16 @@ void ThDebugSetPaused(i32 paused)
 {
     if (paused)
     {
-        // Clear any held inputs so releasing keys while typing doesn't leak
-        // into the game when it resumes.
-        g_CurFrameRawInput = 0;
-        g_LastFrameRawInput = 0;
-        g_GameWindow.isAppActive = 0;
+        if (g_GameManager.notInMenu && !g_GameManager.isInPauseMenu)
+        {
+            g_DebugInjectedInput = TH_BUTTON_MENU;
+        }
     }
     else
     {
-        g_GameWindow.isAppActive = 1;
+        if (g_GameManager.isInPauseMenu)
+        {
+            g_DebugInjectedInput = TH_BUTTON_MENU;
+        }
     }
 }

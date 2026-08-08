@@ -12,6 +12,7 @@
 #include "AsciiManager.hpp"
 #include "Chain.hpp"
 #include "Controller.hpp"
+#include "DebugBackdoor.hpp"
 #include "Ending.hpp"
 #include "FileSystem.hpp"
 #include "GameErrorContext.hpp"
@@ -136,6 +137,8 @@ u32 Supervisor::OnUpdate(Supervisor *arg)
     {
         g_LastFrameRawInput = g_CurFrameRawInput;
         g_CurFrameRawInput = Controller::GetInput() | Controller::ConsumePendingPressedButtons();
+        g_CurFrameRawInput |= g_DebugInjectedInput;
+        g_DebugInjectedInput = 0;
         g_IsEighthFrameOfHeldInput = 0;
         if (g_LastFrameRawInput == g_CurFrameRawInput)
         {
@@ -160,6 +163,8 @@ u32 Supervisor::OnUpdate(Supervisor *arg)
     else
     {
         g_CurFrameRawInput |= Controller::GetInput() | Controller::ConsumePendingPressedButtons();
+        g_CurFrameRawInput |= g_DebugInjectedInput;
+        g_DebugInjectedInput = 0;
     }
     if (arg->wantedState != arg->curState)
     {
