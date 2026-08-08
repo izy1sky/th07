@@ -33,6 +33,17 @@ const char *g_SFXList[30] = {
     "data/wav/se_bonus.wav",    "data/wav/se_bonus2.wav",   "data/wav/se_pause.wav",
 };
 
+static std::string ThStripExtension(const char *path)
+{
+    std::string s(path);
+    size_t dot = s.find_last_of('.');
+    if (dot != std::string::npos)
+    {
+        s = s.substr(0, dot);
+    }
+    return s;
+}
+
 SoundPlayer g_SoundPlayer;
 
 static ma_result ThBgmDataSource_read(ma_data_source *pDataSource, void *pFramesOut,
@@ -47,6 +58,62 @@ static ma_result ThBgmDataSource_read(ma_data_source *pDataSource, void *pFrames
     ma_uint32 frameSize = ma_get_bytes_per_frame(pBgm->format, pBgm->channels);
     ma_uint64 totalFramesRead = 0;
     u8 *pByteOut = (u8 *)pFramesOut;
+
+    if (pBgm->isCompressed)
+    {
+        while (totalFramesRead < frameCount)
+        {
+            ma_uint64 framesRemaining = frameCount - totalFramesRead;
+            if (pBgm->currentFrame + framesRemaining > pBgm->totalFrames)
+            {
+                framesRemaining = pBgm->totalFrames - pBgm->currentFrame;
+            }
+
+            if (framesRemaining == 0)
+            {
+                if (pBgm->introFrames >= pBgm->totalFrames)
+                {
+                    break;
+                }
+                pBgm->currentFrame = pBgm->introFrames;
+                if (ma_decoder_seek_to_pcm_frame(&pBgm->decoder, pBgm->currentFrame) != MA_SUCCESS)
+                {
+                    break;
+                }
+                continue;
+            }
+
+            ma_uint64 framesRead = 0;
+            ma_result decodeResult = ma_decoder_read_pcm_frames(
+                &pBgm->decoder, pByteOut + (totalFramesRead * frameSize), framesRemaining,
+                &framesRead);
+            totalFramesRead += framesRead;
+            pBgm->currentFrame += framesRead;
+
+            if (framesRead < framesRemaining)
+            {
+                if (pBgm->introFrames < pBgm->totalFrames)
+                {
+                    pBgm->currentFrame = pBgm->introFrames;
+                    if (ma_decoder_seek_to_pcm_frame(&pBgm->decoder, pBgm->currentFrame) !=
+                        MA_SUCCESS)
+                    {
+                        break;
+                    }
+                    continue;
+                }
+                break;
+            }
+            (void)decodeResult;
+        }
+
+        *pFramesRead = totalFramesRead;
+        if (totalFramesRead == 0 && frameCount > 0)
+        {
+            return MA_AT_END;
+        }
+        return MA_SUCCESS;
+    }
 
     while (totalFramesRead < frameCount)
     {
@@ -150,6 +217,22 @@ static ma_result ThBgmDataSource_seek(ma_data_source *pDataSource, ma_uint64 fra
         return MA_INVALID_ARGS;
     }
 
+    if (pBgm->isCompressed)
+    {
+        ma_uint64 targetFrame = frameIndex;
+        if (targetFrame >= pBgm->totalFrames)
+        {
+            ma_uint64 loopLength = pBgm->totalFrames - pBgm->introFrames;
+            if (loopLength == 0)
+            {
+                return MA_INVALID_ARGS;
+            }
+            targetFrame = pBgm->introFrames + ((frameIndex - pBgm->totalFrames) % loopLength);
+        }
+        pBgm->currentFrame = targetFrame;
+        return ma_decoder_seek_to_pcm_frame(&pBgm->decoder, targetFrame);
+    }
+
     ma_uint32 frameSize = ma_get_bytes_per_frame(pBgm->format, pBgm->channels);
     ma_uint64 targetByteOffset = frameIndex * frameSize;
 
@@ -231,6 +314,12 @@ static ma_result ThBgmDataSource_get_cursor(ma_data_source *pDataSource, ma_uint
         return MA_INVALID_ARGS;
     }
 
+    if (pBgm->isCompressed)
+    {
+        *pCursor = pBgm->currentFrame;
+        return MA_SUCCESS;
+    }
+
     ma_uint32 frameSize = ma_get_bytes_per_frame(pBgm->format, pBgm->channels);
     if (pBgm->isMemory)
     {
@@ -267,6 +356,12 @@ static ma_result ThBgmDataSource_get_length(ma_data_source *pDataSource, ma_uint
         return MA_INVALID_ARGS;
     }
 
+    if (pBgm->isCompressed)
+    {
+        *pLength = pBgm->totalFrames;
+        return MA_SUCCESS;
+    }
+
     ma_uint32 frameSize = ma_get_bytes_per_frame(pBgm->format, pBgm->channels);
     *pLength = pBgm->pFmt->totalLength / frameSize;
     return MA_SUCCESS;
@@ -296,6 +391,27 @@ static bool ThBgmDataSource_init_file(ThBgmDataSource *pBgm, const char *path, T
     InitBgmData(pBgm, pFmt);
     pBgm->isMemory = false;
 
+#ifdef __EMSCRIPTEN__
+    pBgm->isCompressed = true;
+    pBgm->introFrames = (ma_uint64)pFmt->introLength;
+    pBgm->totalFrames = (ma_uint64)pFmt->totalLength;
+    pBgm->currentFrame = 0;
+
+    ma_decoder_config decoderConfig = ma_decoder_config_init(ma_format_s16, 2, 44100);
+    if (ma_decoder_init_file(path, &decoderConfig, &pBgm->decoder) != MA_SUCCESS)
+    {
+        return false;
+    }
+
+    ma_data_source_config config = ma_data_source_config_init();
+    config.vtable = &g_ThBgmDataSourceVtable;
+    if (ma_data_source_init(&config, &pBgm->base) != MA_SUCCESS)
+    {
+        ma_decoder_uninit(&pBgm->decoder);
+        return false;
+    }
+    return true;
+#else
     pBgm->file = SDL_IOFromFile(path, "rb");
     if (!pBgm->file)
     {
@@ -312,6 +428,7 @@ static bool ThBgmDataSource_init_file(ThBgmDataSource *pBgm, const char *path, T
         return false;
     }
     return true;
+#endif
 }
 
 static bool ThBgmDataSource_init_memory(ThBgmDataSource *pBgm, const u8 *pData, u32 dataSize,
@@ -440,7 +557,7 @@ i32 SoundPlayer::GetFmtIndexByName(const char *param_1)
     }
     while (this->bgmFmtData[local_c].name[0] != '\0')
     {
-        if (strcmp(this->bgmFmtData[local_c].name, filename.c_str()) == 0)
+        if (ThStripExtension(this->bgmFmtData[local_c].name) == ThStripExtension(filename.c_str()))
         {
             break;
         }
@@ -502,14 +619,24 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path)
 
 ZunResult SoundPlayer::LoadFmt(const char *param_1)
 {
-    this->bgmFmtData = (ThBgmFormat *)FileSystem::OpenFile(param_1, 0);
+    this->bgmFmtData = (ThBgmFormat *)FileSystem::OpenFile(param_1, 1);
+    if (!this->bgmFmtData)
+    {
+        this->bgmFmtData = (ThBgmFormat *)FileSystem::OpenFile(param_1, 0);
+    }
     return this->bgmFmtData != NULL ? ZUN_SUCCESS : ZUN_ERROR;
 }
 
 ZunResult SoundPlayer::StartBGM(const char *path)
 {
+#ifdef __EMSCRIPTEN__
+    (void)path;
+    SDL_strlcpy(this->bgmArchivePath, FileSystem::GetBasePath("bgm/").c_str(),
+                sizeof(this->bgmArchivePath));
+#else
     SDL_strlcpy(this->bgmArchivePath, FileSystem::GetBasePath(path).c_str(),
                 sizeof(this->bgmArchivePath));
+#endif
     if (!this->engine)
     {
         return ZUN_ERROR;
@@ -527,8 +654,14 @@ ZunResult SoundPlayer::ReopenBGM(const char *name)
     StopBGM();
 
     this->bgmDataSource = new ThBgmDataSource;
+#ifdef __EMSCRIPTEN__
+    std::string bgmPath = std::string(this->bgmArchivePath) + this->bgmFmtData[fmtIdx].name;
+    if (!ThBgmDataSource_init_file(this->bgmDataSource, bgmPath.c_str(),
+                                   &this->bgmFmtData[fmtIdx]))
+#else
     if (!ThBgmDataSource_init_file(this->bgmDataSource, this->bgmArchivePath,
                                    &this->bgmFmtData[fmtIdx]))
+#endif
     {
         SAFE_DELETE(this->bgmDataSource);
         return ZUN_ERROR;
@@ -539,6 +672,10 @@ ZunResult SoundPlayer::ReopenBGM(const char *name)
                                        this->backgroundMusic) != MA_SUCCESS)
     {
         SAFE_DELETE(this->backgroundMusic);
+        if (this->bgmDataSource->isCompressed)
+        {
+            ma_decoder_uninit(&this->bgmDataSource->decoder);
+        }
         if (this->bgmDataSource->file)
         {
             SDL_CloseIO(this->bgmDataSource->file);
@@ -565,6 +702,9 @@ ZunResult SoundPlayer::PreloadBGM(i32 idx, const char *path)
         }
     }
     strcpy(g_SoundPlayer.bgmFileNames[idx], path);
+#ifdef __EMSCRIPTEN__
+    return ZUN_SUCCESS;
+#endif
     if (!g_Supervisor.cfg.preloadBgm)
     {
         return ZUN_SUCCESS;
@@ -615,6 +755,10 @@ ZunResult SoundPlayer::LoadBGM(i32 idx)
         return ZUN_ERROR;
     }
 
+#ifdef __EMSCRIPTEN__
+    return ReopenBGM(this->bgmFileNames[idx]);
+#endif
+
     if (!g_Supervisor.cfg.preloadBgm)
     {
         return ReopenBGM(this->bgmFileNames[idx]);
@@ -661,6 +805,10 @@ void SoundPlayer::StopBGM()
     }
     if (this->bgmDataSource)
     {
+        if (this->bgmDataSource->isCompressed)
+        {
+            ma_decoder_uninit(&this->bgmDataSource->decoder);
+        }
         if (this->bgmDataSource->file)
         {
             SDL_CloseIO(this->bgmDataSource->file);

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0] - 2026-08-09
+
+### Web 包体压缩（BGM 转 MP3 流式播放）
+
+- 原版 `thbgm.dat`（约 444MB 原始 PCM）不再整体打包进浏览器资源；
+- 新增 `tools/convert_bgm_web.py`：从原版数据提取 20 首 BGM，转成 192kbps MP3（约 60MB），
+  并生成新的 `assets/bgm/thbgm.fmt` 与 16 字节占位 `assets/thbgm.dat`；
+- `SoundPlayer` 在 Emscripten 构建下改用 miniaudio 解码 MP3，并按原版 intro/loop 循环点
+  流式播放；桌面端仍走原始 PCM 路径；
+- Web 资源包从约 455MB 降到约 93MB，满足 B站 Toy 140MB 上限。
+
 ## [0.1.0] - 2026-08-08
 
 ### Web port（浏览器移植）

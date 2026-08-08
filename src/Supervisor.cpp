@@ -568,8 +568,13 @@ ZunResult Supervisor::AddedCallback(Supervisor *arg)
         }
         else
         {
+#ifdef __EMSCRIPTEN__
+            SDL_strlcpy(g_SoundPlayer.bgmArchivePath, FileSystem::GetBasePath("bgm/").c_str(),
+                        sizeof(g_SoundPlayer.bgmArchivePath));
+#else
             SDL_strlcpy(g_SoundPlayer.bgmArchivePath, FileSystem::GetBasePath("thbgm.dat").c_str(),
                         sizeof(g_SoundPlayer.bgmArchivePath));
+#endif
         }
     }
     else if (!g_Supervisor.cfg.preloadBgm)
@@ -578,8 +583,13 @@ ZunResult Supervisor::AddedCallback(Supervisor *arg)
     }
     else
     {
+#ifdef __EMSCRIPTEN__
+        SDL_strlcpy(g_SoundPlayer.bgmArchivePath, FileSystem::GetBasePath("bgm/").c_str(),
+                    sizeof(g_SoundPlayer.bgmArchivePath));
+#else
         SDL_strlcpy(g_SoundPlayer.bgmArchivePath, FileSystem::GetBasePath("th07.dat").c_str(),
                     sizeof(g_SoundPlayer.bgmArchivePath));
+#endif
     }
     scoreDat = ResultScreen::OpenScore(FileSystem::GetPrefPath("score.dat").c_str());
     memset(&g_GameManager.plst, 0, sizeof(g_GameManager.plst));

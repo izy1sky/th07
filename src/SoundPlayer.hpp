@@ -89,6 +89,11 @@ struct ThBgmDataSource
     ma_uint32 sampleRate;
     ThBgmFormat *pFmt;
     bool isMemory;
+    bool isCompressed;
+    ma_decoder decoder;
+    ma_uint64 currentFrame;
+    ma_uint64 introFrames;
+    ma_uint64 totalFrames;
 
     SDL_IOStream *file;
     const u8 *pData;
