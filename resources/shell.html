@@ -438,6 +438,8 @@
                     panel.style.display = show ? "block" : "none";
                     if (show) {
                         refreshState();
+                        scoreInput.focus();
+                        scoreInput.select();
                         if (Module && Module._ThDebugSetPaused) Module._ThDebugSetPaused(1);
                     } else {
                         if (Module && Module._ThDebugSetPaused) Module._ThDebugSetPaused(0);
@@ -528,6 +530,33 @@
                 document.getElementById("prac-bomb-btn").addEventListener("click", setBomb);
                 document.getElementById("prac-power-btn").addEventListener("click", setPower);
                 panel.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+
+                // While the panel is open, keep the game from swallowing keys
+                // that are meant for the panel's inputs. The game's SDL
+                // keyboard handler listens on window (bubble phase), so we
+                // stop propagation here before it can preventDefault.
+                // F9/Escape keep flowing so the toggle/close handler below
+                // still works; Enter applies the focused field and closes.
+                function handlePanelKey(e) {
+                    if (panel.style.display !== "block") return;
+                    if (e.type === "keydown" && e.key === "Enter") {
+                        var el = document.activeElement;
+                        if (el === scoreInput) setScore();
+                        else if (el === lifeInput) setLife();
+                        else if (el === bombInput) setBomb();
+                        else if (el === powerInput) setPower();
+                        else if (el === spellN) jumpSpell();
+                        else if (el === warpN) warp();
+                        setOpen(false);
+                        e.stopImmediatePropagation();
+                        return;
+                    }
+                    if (e.key === "F9" || e.key === "Escape") return;
+                    e.stopImmediatePropagation();
+                }
+                window.addEventListener("keydown", handlePanelKey, false);
+                window.addEventListener("keypress", handlePanelKey, false);
+                window.addEventListener("keyup", handlePanelKey, false);
 
                 window.addEventListener("keydown", function (e) {
                     if (e.key === "F9") {

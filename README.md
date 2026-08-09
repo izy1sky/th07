@@ -159,6 +159,11 @@ The web build includes an in-page practice panel inspired by
 - Adjust: set score, lives, bombs, and power at any time
 - Finish: jump straight to the result screen with the current score
 
+The panel focuses an input when it opens and blocks the game's window-level
+keyboard listener while it is open, so typing works normally. Pressing Enter
+applies the focused field (score/lives/bombs/power/spell/warp) and closes the
+panel; F9 and Esc also toggle it.
+
 Stage-related jumps rebuild the current stage exactly like entering it and
 fast-forward all ECL timelines to the target frame, so the scene is clean
 instead of being force-injected mid-frame.
