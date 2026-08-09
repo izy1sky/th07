@@ -2517,6 +2517,10 @@ ZunResult ResultScreen::DeletedCallback(ResultScreen *arg)
     i32 i;
     i32 j;
 
+#ifdef __EMSCRIPTEN__
+    EM_ASM({ if (window.ToyBridge && ToyBridge.hideResultPanel) ToyBridge.hideResultPanel(); });
+#endif
+
     if (arg->scoreDat)
     {
         arg->WriteScore();

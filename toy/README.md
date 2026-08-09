@@ -46,3 +46,11 @@
 
 - 本地 localhost 打开时 `window.toy` 不存在，桥接全部返回 null/[]，游戏不受影响。
 - 真机验证需发布到 Toy 后，在 B站 App/Web 内打开。
+
+## 结算页 Toy 面板（已实现）
+
+- `ResultScreen::RegisterChain()` 调 `ToyBridge.onRunEnded(...)`，桥接层随即显示右上角面板；
+- 面板包含：本局摘要、授权并上传成绩（board 1 = score/1000）、board 1 榜单（top 10）、
+  最近 20 局云历史、保存战绩图（App 存相册 / Web 下载）；
+- `ResultScreen::DeletedCallback()` 会调 `ToyBridge.hideResultPanel()` 隐藏面板；
+- 非 Toy 环境（localhost）面板仍显示本局摘要，但榜单/历史/上传显示“无 Toy SDK”。

@@ -115,6 +115,15 @@
     };
     // 云存储不需要手势，但需要登录；失败静默即可
     await appendHistory(lastRun);
+    showResultPanel(lastRun);
+  }
+
+  function showResultPanel(run) {
+    if (window.__th07ToyShowResult) window.__th07ToyShowResult(run);
+  }
+
+  function hideResultPanel() {
+    if (window.__th07ToyHideResult) window.__th07ToyHideResult();
   }
 
   // 供结算页按钮调用：提交最近一局成绩（需用户手势触发首次确认）
@@ -134,6 +143,8 @@
     shareImage,
     onRunEnded,
     submitLastScore,
+    showResultPanel,
+    hideResultPanel,
     get hasToy() {
       return hasToy();
     },

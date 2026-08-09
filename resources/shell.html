@@ -41,6 +41,81 @@
                 width: 100vw;
                 height: 100vh;
             }
+
+            #toy-panel {
+                position: fixed;
+                z-index: 9998;
+                width: 320px;
+                max-height: 70vh;
+                overflow-y: auto;
+                background: rgba(8, 12, 20, 0.92);
+                color: #cfc;
+                font: 12px/1.5 monospace;
+                border: 1px solid #366;
+                border-radius: 6px;
+                padding: 8px 10px;
+                box-sizing: border-box;
+                display: none;
+                box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+            }
+
+            .toy-panel-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-weight: bold;
+                color: #9f9;
+                margin-bottom: 6px;
+            }
+
+            #toy-panel-close {
+                background: none;
+                border: 1px solid #366;
+                color: #9f9;
+                cursor: pointer;
+                font: 14px monospace;
+                line-height: 1;
+                padding: 2px 6px;
+            }
+
+            .toy-actions {
+                display: flex;
+                gap: 6px;
+                margin: 6px 0;
+            }
+
+            .toy-actions button {
+                background: #123;
+                color: #9f9;
+                border: 1px solid #366;
+                cursor: pointer;
+                padding: 4px 6px;
+                font: 12px monospace;
+            }
+
+            .toy-section-title {
+                color: #9f9;
+                border-top: 1px solid #244;
+                margin-top: 8px;
+                padding-top: 4px;
+            }
+
+            #toy-rank,
+            #toy-history {
+                margin: 4px 0 0;
+                padding-left: 18px;
+            }
+
+            #toy-rank li,
+            #toy-history li {
+                margin: 2px 0;
+                word-break: break-all;
+            }
+
+            #toy-status {
+                min-height: 14px;
+                color: #fa8;
+            }
         </style>
     </head>
     <body>
@@ -61,6 +136,22 @@
                 style="width:280px;background:#000;color:#0f0;border:1px solid #0f0;"
                 placeholder="debug: finish / stage / timeline / boss / help (F9)"
             />
+        </div>
+        <div id="toy-panel" style="display:none">
+            <div class="toy-panel-header">
+                <span>Toy 社区</span>
+                <button id="toy-panel-close" type="button" title="关闭">×</button>
+            </div>
+            <div id="toy-run-summary"></div>
+            <div class="toy-actions">
+                <button id="toy-upload-btn" type="button">授权并上传成绩</button>
+                <button id="toy-image-btn" type="button">保存战绩图</button>
+            </div>
+            <div id="toy-status"></div>
+            <div class="toy-section-title">排行榜（board 1 · 千分位）</div>
+            <ol id="toy-rank"></ol>
+            <div class="toy-section-title">最近战绩</div>
+            <ul id="toy-history"></ul>
         </div>
         <script>
             var progressElement = document.getElementById("progress");
@@ -341,6 +432,189 @@
                     },
                     help: log,
                 };
+            })();
+        </script>
+
+        <script>
+            (function () {
+                var panel = document.getElementById("toy-panel");
+                var summaryEl = document.getElementById("toy-run-summary");
+                var statusEl = document.getElementById("toy-status");
+                var rankEl = document.getElementById("toy-rank");
+                var historyEl = document.getElementById("toy-history");
+                var uploadBtn = document.getElementById("toy-upload-btn");
+                var imageBtn = document.getElementById("toy-image-btn");
+                var closeBtn = document.getElementById("toy-panel-close");
+                var lastRun = null;
+
+                var DIFFS = ["Easy", "Normal", "Hard", "Lunatic", "Extra", "Phantasm"];
+                var CHARS = ["ReimuA", "ReimuB", "MarisaA", "MarisaB", "SakuyaA", "SakuyaB"];
+                var TYPES = { 1: "Clear", 2: "GameOver" };
+
+                function fmtScore(n) {
+                    return n == null ? "-" : Number(n).toLocaleString("en-US");
+                }
+
+                function layout() {
+                    var canvas = document.getElementById("canvas");
+                    var vw = window.innerWidth;
+                    var vh = window.innerHeight;
+                    var cw = canvas.width || 640;
+                    var ch = canvas.height || 480;
+                    var scale = Math.min(vw / cw, vh / ch);
+                    var w = cw * scale;
+                    var h = ch * scale;
+                    var x = (vw - w) / 2;
+                    var y = (vh - h) / 2;
+                    var pw = Math.min(320, Math.max(220, w - 24));
+                    panel.style.width = pw + "px";
+                    var left = x + w - pw - 10;
+                    if (left < x + 10) left = x + 10;
+                    panel.style.left = Math.round(left) + "px";
+                    panel.style.top = Math.round(y + 10) + "px";
+                    panel.style.maxHeight = Math.round(h - 20) + "px";
+                }
+
+                function renderSummary(run) {
+                    summaryEl.textContent =
+                        "Score " + fmtScore(run.s) +
+                        "  " + (TYPES[run.t] || run.t) +
+                        "  Stage " + run.st +
+                        "  " + (DIFFS[run.df] || run.df) +
+                        "  " + (CHARS[run.c] || run.c) +
+                        (run.stp != null ? "/" + run.stp : "");
+                }
+
+                function setStatus(text) {
+                    statusEl.textContent = text;
+                }
+
+                async function renderRank() {
+                    rankEl.textContent = "";
+                    if (!window.ToyBridge) return;
+                    var list = await ToyBridge.getRank(1, "all", 10);
+                    if (!list || !list.length) {
+                        var li = document.createElement("li");
+                        li.textContent = "暂无榜单数据（或当前环境无 Toy SDK）";
+                        rankEl.appendChild(li);
+                        return;
+                    }
+                    list.forEach(function (item) {
+                        var li = document.createElement("li");
+                        li.textContent =
+                            "#" + item.rank +
+                            " " + (item.nickname || "?") +
+                            "  " + fmtScore(item.score * 1000);
+                        rankEl.appendChild(li);
+                    });
+                }
+
+                async function renderHistory() {
+                    historyEl.textContent = "";
+                    if (!window.ToyBridge) return;
+                    var list = await ToyBridge.getHistory();
+                    if (!list || !list.length) {
+                        var li = document.createElement("li");
+                        li.textContent = "暂无历史记录";
+                        historyEl.appendChild(li);
+                        return;
+                    }
+                    list.slice(0, 20).forEach(function (h) {
+                        var li = document.createElement("li");
+                        li.textContent =
+                            (h.d || "??") + " " +
+                            (TYPES[h.t] || h.t) +
+                            " St" + h.st +
+                            " " + fmtScore(h.s);
+                        historyEl.appendChild(li);
+                    });
+                }
+
+                async function refresh() {
+                    await renderRank();
+                    await renderHistory();
+                }
+
+                async function upload() {
+                    setStatus("授权中…");
+                    var user = null;
+                    try {
+                        user = await ToyBridge.getUser();
+                    } catch (e) {}
+                    if (!user) {
+                        setStatus("未授权或当前环境无 Toy SDK");
+                        return;
+                    }
+                    setStatus("上传中…");
+                    var res = await ToyBridge.submitLastScore(1, 1000);
+                    setStatus(res ? "成绩已上传（board 1）" : "上传失败");
+                    renderRank();
+                }
+
+                function saveImage() {
+                    var c = document.createElement("canvas");
+                    c.width = 640;
+                    c.height = 480;
+                    var g = c.getContext("2d");
+                    g.fillStyle = "#000";
+                    g.fillRect(0, 0, 640, 480);
+                    g.fillStyle = "#0f0";
+                    g.font = "20px monospace";
+                    g.fillText("Touhou 7 - Perfect Cherry Blossom", 24, 44);
+                    g.font = "16px monospace";
+                    var run = lastRun || {};
+                    g.fillText("Score: " + fmtScore(run.s), 24, 90);
+                    g.fillText("Stage: " + run.st, 24, 116);
+                    g.fillText("Difficulty: " + (DIFFS[run.df] || run.df), 24, 142);
+                    g.fillText(
+                        "Character: " + (CHARS[run.c] || run.c) +
+                        (run.stp != null ? "/" + run.stp : ""),
+                        24,
+                        168
+                    );
+                    g.fillText("Date: " + (run.d || new Date().toISOString().slice(0, 10)), 24, 194);
+                    if (!window.ToyBridge) {
+                        setStatus("当前环境无 Toy SDK");
+                        return;
+                    }
+                    ToyBridge.shareImage(c.toDataURL("image/png")).then(function (mode) {
+                        setStatus(mode === "album" ? "已保存到相册" : "已开始下载战绩图");
+                    });
+                }
+
+                function show(run) {
+                    lastRun = run;
+                    renderSummary(run);
+                    layout();
+                    panel.style.display = "block";
+                    setStatus("");
+                    refresh();
+                }
+
+                function hide() {
+                    panel.style.display = "none";
+                }
+
+                closeBtn.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    hide();
+                });
+                uploadBtn.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    upload();
+                });
+                imageBtn.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    saveImage();
+                });
+                panel.addEventListener("pointerdown", function (e) {
+                    e.stopPropagation();
+                });
+                window.addEventListener("resize", layout);
+                window.addEventListener("orientationchange", layout);
+
+                window.__th07ToyShowResult = show;
+                window.__th07ToyHideResult = hide;
             })();
         </script>
 
