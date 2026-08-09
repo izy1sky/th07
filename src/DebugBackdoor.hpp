@@ -39,6 +39,16 @@ void ThDebugWave(i32 n);
 // Raw: call ECL subroutine subId on the first active boss.
 void ThDebugSub(i32 subId);
 
+// Run-state adjustments used by the F9 practice panel.
+void ThDebugSetScore(i32 score);
+void ThDebugSetLives(i32 lives);
+void ThDebugSetBombs(i32 bombs);
+void ThDebugSetPower(i32 power);
+i32 ThDebugGetScore();
+i32 ThDebugGetLives();
+i32 ThDebugGetBombs();
+i32 ThDebugGetPower();
+
 #ifdef __cplusplus
 }
 #endif

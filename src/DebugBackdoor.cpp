@@ -43,6 +43,118 @@ void ThDebugFinish(i32 score)
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
+void ThDebugSetScore(i32 score)
+{
+    if (!g_GameManager.globals)
+    {
+        return;
+    }
+    if (score < 0)
+    {
+        score = 0;
+    }
+    g_GameManager.globals->score = (u32)score;
+    g_GameManager.globals->guiScore = (u32)score;
+    g_GameManager.RegenerateGameIntegrityCsum();
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+void ThDebugSetLives(i32 lives)
+{
+    if (!g_GameManager.globals)
+    {
+        return;
+    }
+    if (lives < 0)
+    {
+        lives = 0;
+    }
+    if (lives > 8)
+    {
+        lives = 8;
+    }
+    g_GameManager.SetLivesRemaining(lives);
+    g_GameManager.RegenerateGameIntegrityCsum();
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+void ThDebugSetBombs(i32 bombs)
+{
+    if (!g_GameManager.globals)
+    {
+        return;
+    }
+    if (bombs < 0)
+    {
+        bombs = 0;
+    }
+    if (bombs > 8)
+    {
+        bombs = 8;
+    }
+    g_GameManager.SetBombsRemainingAndComputeCsum(bombs);
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+void ThDebugSetPower(i32 power)
+{
+    if (!g_GameManager.globals)
+    {
+        return;
+    }
+    if (power < 0)
+    {
+        power = 0;
+    }
+    if (power > 128)
+    {
+        power = 128;
+    }
+    g_GameManager.SetCurrentPower(power);
+    g_GameManager.RegenerateGameIntegrityCsum();
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+i32 ThDebugGetScore()
+{
+    return g_GameManager.globals ? (i32)g_GameManager.globals->score : 0;
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+i32 ThDebugGetLives()
+{
+    return g_GameManager.globals ? (i32)g_GameManager.globals->livesRemaining : 0;
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+i32 ThDebugGetBombs()
+{
+    return g_GameManager.globals ? (i32)g_GameManager.globals->bombsRemaining : 0;
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+i32 ThDebugGetPower()
+{
+    return g_GameManager.globals ? (i32)g_GameManager.globals->currentPower : 0;
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
 void ThDebugSetPaused(i32 paused)
 {
     if (paused)

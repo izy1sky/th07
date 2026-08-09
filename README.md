@@ -148,26 +148,27 @@ path unchanged.
 
 ### Debug backdoor
 
-The web build includes a small debug console for testing. Press **F9** to open
-it (the game pauses while the console is open), then type:
+The web build includes an in-page practice panel inspired by
+[thprac](https://github.com/touhouworldcup/thprac). Press **F9** to open it
+(the game pauses while the panel is open):
 
-- `finish [score]` - instantly jump to the result screen with the given score
-- `stage <1-8>` - jump to a stage (keeps score/lives/bombs)
-- `spell <n>` - jump to the n-th spellcard (auto-jumps to the boss first)
-- `midboss` / `boss` - restart the current stage at the midboss / final boss entrance
-- `wave <n>` - restart the current stage at the n-th enemy wave
-- `timeline <n>` - restart the current stage at ECL timeline n
-- `sub <id>` - raw: call an ECL sub on the active boss
-- `help` - list commands
+- Jump: select a stage and enter it, or jump to the stage start / n-th wave /
+  midboss / final boss / a specific ECL timeline
+- Spellcard: jump to the n-th spellcard of the current stage (auto-jumps to
+  the boss first)
+- Adjust: set score, lives, bombs, and power at any time
+- Finish: jump straight to the result screen with the current score
 
 Stage-related jumps rebuild the current stage exactly like entering it and
 fast-forward all ECL timelines to the target frame, so the scene is clean
 instead of being force-injected mid-frame.
 
-The same function is exposed on the browser console as
-`window.__th07Debug.finish(score)`. It uses the normal stage-clear transition
-(`GameManager::CutChain()` + `ResultScreen::RegisterChain(1)`), so the result
-screen behaves like a real clear.
+The same operations are exposed on the browser console as
+`window.__th07Debug` (`finish`, `stage`, `spell`, `midboss`, `boss`, `wave`,
+`timeline`, `setScore`, `setLives`, `setBombs`, `setPower`). The finish path
+uses the normal stage-clear transition (`GameManager::CutChain()` +
+`ResultScreen::RegisterChain(1)`), so the result screen behaves like a real
+clear.
 
 ## Todo
 

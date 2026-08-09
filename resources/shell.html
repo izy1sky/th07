@@ -116,6 +116,95 @@
                 min-height: 14px;
                 color: #fa8;
             }
+
+            #th07-prac {
+                position: fixed;
+                z-index: 9999;
+                width: 360px;
+                max-height: 80vh;
+                overflow-y: auto;
+                background: rgba(8, 12, 20, 0.94);
+                color: #cfc;
+                font: 12px/1.5 monospace;
+                border: 1px solid #366;
+                border-radius: 6px;
+                padding: 8px 10px;
+                box-sizing: border-box;
+                display: none;
+                box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+            }
+
+            .prac-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-weight: bold;
+                color: #9f9;
+                margin-bottom: 6px;
+            }
+
+            #th07-prac-close {
+                background: none;
+                border: 1px solid #366;
+                color: #9f9;
+                cursor: pointer;
+                font: 14px monospace;
+                line-height: 1;
+                padding: 2px 6px;
+            }
+
+            .prac-section {
+                color: #9f9;
+                border-top: 1px solid #244;
+                margin-top: 8px;
+                padding-top: 4px;
+            }
+
+            .prac-row {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin: 6px 0;
+            }
+
+            .prac-row label {
+                width: 52px;
+                color: #9f9;
+                flex: none;
+            }
+
+            .prac-row select,
+            .prac-row input {
+                background: #000;
+                color: #0f0;
+                border: 1px solid #366;
+                font: 12px monospace;
+                padding: 2px 4px;
+                box-sizing: border-box;
+            }
+
+            .prac-row select {
+                flex: 1;
+            }
+
+            .prac-row input[type="number"] {
+                width: 64px;
+            }
+
+            .prac-row button {
+                background: #123;
+                color: #9f9;
+                border: 1px solid #366;
+                cursor: pointer;
+                padding: 3px 6px;
+                font: 12px monospace;
+            }
+
+            #prac-status {
+                min-height: 14px;
+                color: #fa8;
+                margin-top: 4px;
+            }
         </style>
     </head>
     <body>
@@ -126,16 +215,66 @@
             class="canvas"
             oncontextmenu="event.preventDefault()"
         ></canvas>
-        <div
-            id="th07-debug"
-            style="display:none;position:fixed;left:8px;bottom:8px;z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;font:12px monospace;padding:8px;border-radius:4px;"
-        >
-            <div id="th07-debug-out"></div>
-            <input
-                id="th07-debug-input"
-                style="width:280px;background:#000;color:#0f0;border:1px solid #0f0;"
-                placeholder="debug: finish / stage / timeline / boss / help (F9)"
-            />
+        <div id="th07-prac" style="display:none">
+            <div class="prac-header">
+                <span>练习面板（F9）</span>
+                <button id="th07-prac-close" type="button" title="关闭">×</button>
+            </div>
+            <div class="prac-section">跳转</div>
+            <div class="prac-row">
+                <label>关卡</label>
+                <select id="prac-stage">
+                    <option value="1">Stage 1</option>
+                    <option value="2">Stage 2</option>
+                    <option value="3">Stage 3</option>
+                    <option value="4">Stage 4</option>
+                    <option value="5">Stage 5</option>
+                    <option value="6">Stage 6</option>
+                    <option value="7">Stage 7</option>
+                    <option value="8">Stage 8</option>
+                </select>
+                <button id="prac-stage-btn" type="button">进入</button>
+            </div>
+            <div class="prac-row">
+                <label>位置</label>
+                <select id="prac-warp">
+                    <option value="start">道中起点</option>
+                    <option value="wave">第 n 波</option>
+                    <option value="midboss">中 Boss</option>
+                    <option value="boss">最终 Boss</option>
+                    <option value="timeline">指定 timeline</option>
+                </select>
+                <input id="prac-warp-n" type="number" min="0" value="1" />
+                <button id="prac-warp-btn" type="button">跳转</button>
+            </div>
+            <div class="prac-row">
+                <label>符卡</label>
+                <input id="prac-spell-n" type="number" min="1" value="1" />
+                <button id="prac-spell-btn" type="button">跳符卡</button>
+                <button id="prac-finish-btn" type="button">直接结算</button>
+            </div>
+            <div class="prac-section">调整</div>
+            <div class="prac-row">
+                <label>分数</label>
+                <input id="prac-score" type="number" min="0" value="0" />
+                <button id="prac-score-btn" type="button">设置</button>
+            </div>
+            <div class="prac-row">
+                <label>残机</label>
+                <input id="prac-life" type="number" min="0" max="8" value="2" />
+                <button id="prac-life-btn" type="button">设置</button>
+            </div>
+            <div class="prac-row">
+                <label>雷</label>
+                <input id="prac-bomb" type="number" min="0" max="8" value="3" />
+                <button id="prac-bomb-btn" type="button">设置</button>
+            </div>
+            <div class="prac-row">
+                <label>火力</label>
+                <input id="prac-power" type="number" min="0" max="128" value="0" />
+                <button id="prac-power-btn" type="button">设置</button>
+            </div>
+            <div id="prac-status"></div>
         </div>
         <div id="toy-panel" style="display:none">
             <div class="toy-panel-header">
@@ -277,130 +416,125 @@
         </script>
 
         <script>
-            // Debug backdoor console (F9). Commands:
-            //   finish [score]    - jump to the result screen with the given score
-            //   stage <1-8>       - enter a stage (keeps score/lives/bombs)
-            //   spell <n>         - jump to the n-th spellcard (auto-jumps to boss)
-            //   midboss           - restart current stage at the midboss entrance
-            //   boss              - restart current stage at the final boss entrance
-            //   wave <n>          - restart current stage at the n-th enemy wave
-            //   timeline <n>      - restart current stage at ECL timeline n
-            //   sub <id>          - raw: call ECL sub id on the active boss
-            //   help              - list commands
+            // Practice panel (F9): stage/warp/spell jumps plus run-state
+            // adjustments, styled after thprac's practice menu.
             (function () {
-                var box = document.getElementById("th07-debug");
-                var out = document.getElementById("th07-debug-out");
-                var input = document.getElementById("th07-debug-input");
+                var panel = document.getElementById("th07-prac");
+                var statusEl = document.getElementById("prac-status");
+                var stageSel = document.getElementById("prac-stage");
+                var warpSel = document.getElementById("prac-warp");
+                var warpN = document.getElementById("prac-warp-n");
+                var spellN = document.getElementById("prac-spell-n");
+                var scoreInput = document.getElementById("prac-score");
+                var lifeInput = document.getElementById("prac-life");
+                var bombInput = document.getElementById("prac-bomb");
+                var powerInput = document.getElementById("prac-power");
 
-                function log(text) {
-                    out.textContent = text;
+                function setStatus(text) {
+                    statusEl.textContent = text;
                 }
 
                 function setOpen(show) {
-                    box.style.display = show ? "block" : "none";
+                    panel.style.display = show ? "block" : "none";
                     if (show) {
-                        input.focus();
+                        refreshState();
                         if (Module && Module._ThDebugSetPaused) Module._ThDebugSetPaused(1);
                     } else {
                         if (Module && Module._ThDebugSetPaused) Module._ThDebugSetPaused(0);
                     }
                 }
 
-                function run(cmd) {
-                    var parts = cmd.trim().split(/\s+/);
-                    var c = parts[0];
-                    var n = parts.length > 1 ? parseInt(parts[1], 10) : 0;
-                    if (isNaN(n)) n = 0;
+                function refreshState() {
+                    if (!Module) return;
+                    if (Module._ThDebugGetScore) scoreInput.value = Module._ThDebugGetScore();
+                    if (Module._ThDebugGetLives) lifeInput.value = Module._ThDebugGetLives();
+                    if (Module._ThDebugGetBombs) bombInput.value = Module._ThDebugGetBombs();
+                    if (Module._ThDebugGetPower) powerInput.value = Module._ThDebugGetPower();
+                }
 
-                    if (c === "finish") {
-                        if (Module && Module._ThDebugFinish) {
-                            Module._ThDebugFinish(n | 0);
-                            log("finish -> result screen (score " + (n | 0) + ")");
-                            setOpen(false);
-                        } else {
-                            log("ThDebugFinish not exported yet");
-                        }
-                    } else if (c === "stage") {
-                        if (Module && Module._ThDebugStage) {
-                            Module._ThDebugStage(n | 0);
-                            log("jump to stage " + (n | 0));
-                        }
-                    } else if (c === "timeline") {
-                        if (Module && Module._ThDebugTimeline) {
-                            Module._ThDebugTimeline(n | 0);
-                            log("run timeline " + (n | 0));
-                        }
-                    } else if (c === "spell") {
-                        if (Module && Module._ThDebugSpell) {
-                            var r = Module._ThDebugSpell(n | 0);
-                            var msg = ["ok", "no boss active", "no ECL loaded", "no such spell"][-r] || "?";
-                            log("spell " + (n | 0) + " -> " + msg);
-                        }
-                    } else if (c === "midboss") {
-                        if (Module && Module._ThDebugMidboss) {
-                            Module._ThDebugMidboss();
-                            log("midboss timeline run");
-                        }
-                    } else if (c === "boss") {
-                        if (Module && Module._ThDebugFinalBoss) {
-                            Module._ThDebugFinalBoss();
-                            log("final boss timeline run");
-                        }
-                    } else if (c === "wave") {
-                        if (Module && Module._ThDebugWave) {
-                            Module._ThDebugWave(n | 0);
-                            log("run wave " + (n | 0));
-                        }
-                    } else if (c === "sub") {
-                        if (Module && Module._ThDebugSub) {
-                            Module._ThDebugSub(n | 0);
-                            log("call boss sub " + (n | 0));
-                        }
-                    } else if (c === "help") {
-                        log("commands: finish [score], stage <1-8>, spell <n>, midboss, boss, wave <n>, timeline <n>, sub <id>, help");
-                    } else {
-                        log("unknown: " + c + " (try help)");
+                function call(fn, okText) {
+                    try {
+                        var r = fn();
+                        setStatus(okText + (r != null ? " (" + r + ")" : ""));
+                    } catch (e) {
+                        setStatus("err: " + e);
                     }
                 }
 
-                // Intercept every key on window (capture phase) while the
-                // console is open. This runs before SDL's canvas listener and
-                // before the input's native handling, so SDL never sees the
-                // keys and we control insertion ourselves.
-                function handleDebugKey(e) {
-                    if (box.style.display !== "block") return;
-                    e.stopImmediatePropagation();
-                    e.preventDefault();
-                    if (e.type === "keydown") {
-                        if (e.key === "Enter") {
-                            run(input.value);
-                            input.value = "";
-                        } else if (e.key === "Escape" || e.key === "F9") {
-                            setOpen(false);
-                        } else if (e.key === "Backspace") {
-                            input.value = input.value.slice(0, -1);
-                        } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                            input.value += e.key;
-                            input.scrollLeft = input.scrollWidth;
-                        }
+                function enterStage() {
+                    var n = parseInt(stageSel.value, 10) || 1;
+                    call(function () { Module._ThDebugStage(n); }, "进入 Stage " + n);
+                }
+
+                function warp() {
+                    var kind = warpSel.value;
+                    var n = parseInt(warpN.value, 10) || 0;
+                    if (kind === "start") {
+                        var st = parseInt(stageSel.value, 10) || 1;
+                        call(function () { Module._ThDebugStage(st); }, "道中起点 Stage " + st);
+                    } else if (kind === "wave") {
+                        call(function () { Module._ThDebugWave(n); }, "第 " + n + " 波");
+                    } else if (kind === "midboss") {
+                        call(function () { Module._ThDebugMidboss(); }, "中 Boss");
+                    } else if (kind === "boss") {
+                        call(function () { Module._ThDebugFinalBoss(); }, "最终 Boss");
+                    } else if (kind === "timeline") {
+                        call(function () { Module._ThDebugTimeline(n); }, "timeline " + n);
                     }
                 }
-                window.addEventListener("keydown", handleDebugKey, true);
-                window.addEventListener("keypress", handleDebugKey, true);
-                window.addEventListener("keyup", handleDebugKey, true);
+
+                function jumpSpell() {
+                    var n = parseInt(spellN.value, 10) || 1;
+                    var r = Module && Module._ThDebugSpell ? Module._ThDebugSpell(n) : null;
+                    var msg = r === 0 ? "ok" : r === -1 ? "no boss active" : r === -2 ? "no ECL loaded" : r === -3 ? "no such spell" : "?";
+                    setStatus("spell " + n + " -> " + msg);
+                }
+
+                function finish() {
+                    var s = parseInt(scoreInput.value, 10) || 0;
+                    call(function () { Module._ThDebugFinish(s); }, "finish score " + s);
+                }
+
+                function setScore() {
+                    var v = parseInt(scoreInput.value, 10) || 0;
+                    call(function () { Module._ThDebugSetScore(v); }, "score = " + v);
+                }
+
+                function setLife() {
+                    var v = parseInt(lifeInput.value, 10) || 0;
+                    call(function () { Module._ThDebugSetLives(v); }, "lives = " + v);
+                }
+
+                function setBomb() {
+                    var v = parseInt(bombInput.value, 10) || 0;
+                    call(function () { Module._ThDebugSetBombs(v); }, "bombs = " + v);
+                }
+
+                function setPower() {
+                    var v = parseInt(powerInput.value, 10) || 0;
+                    call(function () { Module._ThDebugSetPower(v); }, "power = " + v);
+                }
+
+                document.getElementById("th07-prac-close").addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    setOpen(false);
+                });
+                document.getElementById("prac-stage-btn").addEventListener("click", enterStage);
+                document.getElementById("prac-warp-btn").addEventListener("click", warp);
+                document.getElementById("prac-spell-btn").addEventListener("click", jumpSpell);
+                document.getElementById("prac-finish-btn").addEventListener("click", finish);
+                document.getElementById("prac-score-btn").addEventListener("click", setScore);
+                document.getElementById("prac-life-btn").addEventListener("click", setLife);
+                document.getElementById("prac-bomb-btn").addEventListener("click", setBomb);
+                document.getElementById("prac-power-btn").addEventListener("click", setPower);
+                panel.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
 
                 window.addEventListener("keydown", function (e) {
                     if (e.key === "F9") {
                         e.preventDefault();
-                        setOpen(box.style.display === "none");
-                    }
-                });
-
-                input.addEventListener("keydown", function (e) {
-                    if (e.key === "Enter") {
-                        run(input.value);
-                        input.value = "";
-                    } else if (e.key === "Escape") {
+                        setOpen(panel.style.display === "none");
+                    } else if (e.key === "Escape" && panel.style.display === "block") {
+                        e.preventDefault();
                         setOpen(false);
                     }
                 });
@@ -430,7 +564,27 @@
                     sub: function (n) {
                         if (Module && Module._ThDebugSub) Module._ThDebugSub(n | 0);
                     },
-                    help: log,
+                    setScore: function (v) {
+                        if (v !== undefined) scoreInput.value = v;
+                        setScore();
+                    },
+                    setLives: function (v) {
+                        if (v !== undefined) lifeInput.value = v;
+                        setLife();
+                    },
+                    setBombs: function (v) {
+                        if (v !== undefined) bombInput.value = v;
+                        setBomb();
+                    },
+                    setPower: function (v) {
+                        if (v !== undefined) powerInput.value = v;
+                        setPower();
+                    },
+                    open: function () { setOpen(true); },
+                    close: function () { setOpen(false); },
+                    help: function () {
+                        setStatus("jump: stage/wave/midboss/boss/timeline/spell; adjust: score/lives/bombs/power");
+                    },
                 };
             })();
         </script>
