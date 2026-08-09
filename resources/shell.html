@@ -577,7 +577,7 @@
                         setStatus("当前环境无 Toy SDK");
                         return;
                     }
-                    ToyBridge.shareImage(c.toDataURL("image/png")).then(function (mode) {
+                    ToyBridge.shareImage(c.toDataURL()).then(function (mode) {
                         setStatus(mode === "album" ? "已保存到相册" : "已开始下载战绩图");
                     });
                 }
