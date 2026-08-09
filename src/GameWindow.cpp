@@ -11,6 +11,7 @@
 #include "AnmManager.hpp"
 #include "Chain.hpp"
 #include "Controller.hpp"
+#include "DebugBackdoor.hpp"
 #include "FileSystem.hpp"
 #include "GameErrorContext.hpp"
 #include "GameManager.hpp"
@@ -94,7 +95,14 @@ RenderResult GameWindow::Render()
 
     u64 timeToRender = SDL_GetTicksNS();
 
-    while (this->accumulator >= targetDt)
+    if (g_DebugPaused)
+    {
+        // Keep the simulation frozen (no time accumulation) while the F9
+        // practice panel is open.
+        this->accumulator = 0.0;
+    }
+
+    while (this->accumulator >= targetDt && !g_DebugPaused)
     {
         chainRes = g_Chain.RunCalcChain();
         g_SoundPlayer.ProcessQueues();
@@ -113,7 +121,7 @@ RenderResult GameWindow::Render()
     }
 
     g_RenderAlpha = std::clamp((f32)(this->accumulator / targetDt), 0.0f, 1.0f);
-    if (g_GameManager.isInPauseMenu || g_GameManager.isInRetryMenu)
+    if (g_DebugPaused || g_GameManager.isInPauseMenu || g_GameManager.isInRetryMenu)
     {
         g_RenderAlpha = 1.0f;
     }

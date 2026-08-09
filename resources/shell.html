@@ -239,10 +239,10 @@
                 <label>位置</label>
                 <select id="prac-warp">
                     <option value="start">道中起点</option>
-                    <option value="wave">第 n 波</option>
+                    <option value="wave">第 n 波（按敌机出场顺序）</option>
                     <option value="midboss">中 Boss</option>
                     <option value="boss">最终 Boss</option>
-                    <option value="timeline">指定 timeline</option>
+                    <option value="frame">指定帧</option>
                 </select>
                 <input id="prac-warp-n" type="number" min="0" value="1" />
                 <button id="prac-warp-btn" type="button">跳转</button>
@@ -438,12 +438,42 @@
                     panel.style.display = show ? "block" : "none";
                     if (show) {
                         refreshState();
+                        if (Module && Module._ThDebugGetWaveCount) {
+                            var wc = Module._ThDebugGetWaveCount();
+                            if (wc > 0) warpN.max = wc;
+                        }
                         scoreInput.focus();
                         scoreInput.select();
                         if (Module && Module._ThDebugSetPaused) Module._ThDebugSetPaused(1);
                     } else {
-                        if (Module && Module._ThDebugSetPaused) Module._ThDebugSetPaused(0);
+                        resumeGame();
                     }
+                }
+
+                function resumeGame() {
+                    if (!Module) return;
+                    if (Module._ThDebugSetPaused) Module._ThDebugSetPaused(0);
+                    if (Module._ThDebugGetPaused) {
+                        setTimeout(function () {
+                            if (Module._ThDebugGetPaused()) {
+                                Module._ThDebugSetPaused(0);
+                            }
+                        }, 600);
+                    }
+                }
+
+                function runAfterResume(fn) {
+                    if (Module && Module._ThDebugSetPaused) Module._ThDebugSetPaused(0);
+                    // The game's unpause animation takes ~20 frames; wait for
+                    // it to finish before restarting a stage, otherwise the
+                    // pause-menu state can be left dangling and crash.
+                    setTimeout(function () {
+                        try {
+                            fn();
+                        } catch (e) {
+                            setStatus("err: " + e);
+                        }
+                    }, 0);
                 }
 
                 function refreshState() {
@@ -454,18 +484,12 @@
                     if (Module._ThDebugGetPower) powerInput.value = Module._ThDebugGetPower();
                 }
 
-                function call(fn, okText) {
-                    try {
-                        var r = fn();
-                        setStatus(okText + (r != null ? " (" + r + ")" : ""));
-                    } catch (e) {
-                        setStatus("err: " + e);
-                    }
-                }
-
                 function enterStage() {
                     var n = parseInt(stageSel.value, 10) || 1;
-                    call(function () { Module._ThDebugStage(n); }, "进入 Stage " + n);
+                    runAfterResume(function () {
+                        Module._ThDebugStage(n);
+                        setStatus("enter Stage " + n);
+                    });
                 }
 
                 function warp() {
@@ -473,48 +497,83 @@
                     var n = parseInt(warpN.value, 10) || 0;
                     if (kind === "start") {
                         var st = parseInt(stageSel.value, 10) || 1;
-                        call(function () { Module._ThDebugStage(st); }, "道中起点 Stage " + st);
+                        runAfterResume(function () {
+                            Module._ThDebugStage(st);
+                            setStatus("stage start " + st);
+                        });
                     } else if (kind === "wave") {
-                        call(function () { Module._ThDebugWave(n); }, "第 " + n + " 波");
+                        runAfterResume(function () {
+                            Module._ThDebugWave(n);
+                            setStatus("wave " + n);
+                        });
                     } else if (kind === "midboss") {
-                        call(function () { Module._ThDebugMidboss(); }, "中 Boss");
+                        runAfterResume(function () {
+                            Module._ThDebugMidboss();
+                            setStatus("midboss");
+                        });
                     } else if (kind === "boss") {
-                        call(function () { Module._ThDebugFinalBoss(); }, "最终 Boss");
-                    } else if (kind === "timeline") {
-                        call(function () { Module._ThDebugTimeline(n); }, "timeline " + n);
+                        runAfterResume(function () {
+                            Module._ThDebugFinalBoss();
+                            setStatus("final boss");
+                        });
+                    } else if (kind === "frame") {
+                        runAfterResume(function () {
+                            Module._ThDebugFrame(n);
+                            setStatus("frame " + n);
+                        });
                     }
+                }
+
+                function applyFocusedField() {
+                    var el = document.activeElement;
+                    if (el === scoreInput) setScore();
+                    else if (el === lifeInput) setLife();
+                    else if (el === bombInput) setBomb();
+                    else if (el === powerInput) setPower();
+                    else if (el === spellN) jumpSpell();
+                    else if (el === warpN) warp();
                 }
 
                 function jumpSpell() {
                     var n = parseInt(spellN.value, 10) || 1;
-                    var r = Module && Module._ThDebugSpell ? Module._ThDebugSpell(n) : null;
-                    var msg = r === 0 ? "ok" : r === -1 ? "no boss active" : r === -2 ? "no ECL loaded" : r === -3 ? "no such spell" : "?";
-                    setStatus("spell " + n + " -> " + msg);
+                    runAfterResume(function () {
+                        var r = Module._ThDebugSpell(n);
+                        var msg = r === 0 ? "ok" : r === -1 ? "no boss active" : r === -2 ? "no ECL loaded" : r === -3 ? "no such spell" : "?";
+                        setStatus("spell " + n + " -> " + msg);
+                    });
                 }
 
                 function finish() {
                     var s = parseInt(scoreInput.value, 10) || 0;
-                    call(function () { Module._ThDebugFinish(s); }, "finish score " + s);
+                    runAfterResume(function () {
+                        Module._ThDebugFinish(s);
+                        setStatus("finish score " + s);
+                        setOpen(false);
+                    });
                 }
 
                 function setScore() {
                     var v = parseInt(scoreInput.value, 10) || 0;
-                    call(function () { Module._ThDebugSetScore(v); }, "score = " + v);
+                    if (Module && Module._ThDebugSetScore) Module._ThDebugSetScore(v);
+                    setStatus("score = " + v);
                 }
 
                 function setLife() {
                     var v = parseInt(lifeInput.value, 10) || 0;
-                    call(function () { Module._ThDebugSetLives(v); }, "lives = " + v);
+                    if (Module && Module._ThDebugSetLives) Module._ThDebugSetLives(v);
+                    setStatus("lives = " + v);
                 }
 
                 function setBomb() {
                     var v = parseInt(bombInput.value, 10) || 0;
-                    call(function () { Module._ThDebugSetBombs(v); }, "bombs = " + v);
+                    if (Module && Module._ThDebugSetBombs) Module._ThDebugSetBombs(v);
+                    setStatus("bombs = " + v);
                 }
 
                 function setPower() {
                     var v = parseInt(powerInput.value, 10) || 0;
-                    call(function () { Module._ThDebugSetPower(v); }, "power = " + v);
+                    if (Module && Module._ThDebugSetPower) Module._ThDebugSetPower(v);
+                    setStatus("power = " + v);
                 }
 
                 document.getElementById("th07-prac-close").addEventListener("click", function (e) {
@@ -531,22 +590,21 @@
                 document.getElementById("prac-power-btn").addEventListener("click", setPower);
                 panel.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
 
-                // While the panel is open, keep the game from swallowing keys
-                // that are meant for the panel's inputs. The game's SDL
-                // keyboard handler listens on window (bubble phase), so we
-                // stop propagation here before it can preventDefault.
-                // F9/Escape keep flowing so the toggle/close handler below
-                // still works; Enter applies the focused field and closes.
+                panel.addEventListener(
+                    "keydown",
+                    function (e) {
+                        if (e.key !== "Enter") return;
+                        applyFocusedField();
+                        setOpen(false);
+                        e.preventDefault();
+                        e.stopPropagation();
+                    },
+                    true
+                );
+
                 function handlePanelKey(e) {
                     if (panel.style.display !== "block") return;
                     if (e.type === "keydown" && e.key === "Enter") {
-                        var el = document.activeElement;
-                        if (el === scoreInput) setScore();
-                        else if (el === lifeInput) setLife();
-                        else if (el === bombInput) setBomb();
-                        else if (el === powerInput) setPower();
-                        else if (el === spellN) jumpSpell();
-                        else if (el === warpN) warp();
                         setOpen(false);
                         e.stopImmediatePropagation();
                         return;
@@ -569,51 +627,22 @@
                 });
 
                 window.__th07Debug = {
-                    finish: function (n) {
-                        if (Module && Module._ThDebugFinish) Module._ThDebugFinish(n | 0);
-                    },
-                    stage: function (n) {
-                        if (Module && Module._ThDebugStage) Module._ThDebugStage(n | 0);
-                    },
-                    timeline: function (n) {
-                        if (Module && Module._ThDebugTimeline) Module._ThDebugTimeline(n | 0);
-                    },
-                    spell: function (n) {
-                        if (Module && Module._ThDebugSpell) return Module._ThDebugSpell(n | 0);
-                    },
-                    midboss: function () {
-                        if (Module && Module._ThDebugMidboss) Module._ThDebugMidboss();
-                    },
-                    boss: function () {
-                        if (Module && Module._ThDebugFinalBoss) Module._ThDebugFinalBoss();
-                    },
-                    wave: function (n) {
-                        if (Module && Module._ThDebugWave) Module._ThDebugWave(n | 0);
-                    },
-                    sub: function (n) {
-                        if (Module && Module._ThDebugSub) Module._ThDebugSub(n | 0);
-                    },
-                    setScore: function (v) {
-                        if (v !== undefined) scoreInput.value = v;
-                        setScore();
-                    },
-                    setLives: function (v) {
-                        if (v !== undefined) lifeInput.value = v;
-                        setLife();
-                    },
-                    setBombs: function (v) {
-                        if (v !== undefined) bombInput.value = v;
-                        setBomb();
-                    },
-                    setPower: function (v) {
-                        if (v !== undefined) powerInput.value = v;
-                        setPower();
-                    },
+                    finish: function (n) { runAfterResume(function () { Module._ThDebugFinish(n | 0); }); },
+                    stage: function (n) { runAfterResume(function () { Module._ThDebugStage(n | 0); }); },
+                    timeline: function (n) { runAfterResume(function () { Module._ThDebugTimeline(n | 0); }); },
+                    frame: function (n) { runAfterResume(function () { Module._ThDebugFrame(n | 0); }); },
+                    spell: function (n) { runAfterResume(function () { var r = Module._ThDebugSpell(n | 0); setStatus("spell " + n + " -> " + r); }); },
+                    midboss: function () { runAfterResume(function () { Module._ThDebugMidboss(); }); },
+                    boss: function () { runAfterResume(function () { Module._ThDebugFinalBoss(); }); },
+                    wave: function (n) { runAfterResume(function () { Module._ThDebugWave(n | 0); }); },
+                    sub: function (n) { runAfterResume(function () { Module._ThDebugSub(n | 0); }); },
+                    setScore: function (v) { if (v !== undefined) scoreInput.value = v; setScore(); },
+                    setLives: function (v) { if (v !== undefined) lifeInput.value = v; setLife(); },
+                    setBombs: function (v) { if (v !== undefined) bombInput.value = v; setBomb(); },
+                    setPower: function (v) { if (v !== undefined) powerInput.value = v; setPower(); },
                     open: function () { setOpen(true); },
                     close: function () { setOpen(false); },
-                    help: function () {
-                        setStatus("jump: stage/wave/midboss/boss/timeline/spell; adjust: score/lives/bombs/power");
-                    },
+                    help: function () { setStatus("jump: stage/wave/midboss/boss/frame/spell; adjust: score/lives/bombs/power"); },
                 };
             })();
         </script>

@@ -150,10 +150,11 @@ path unchanged.
 
 The web build includes an in-page practice panel inspired by
 [thprac](https://github.com/touhouworldcup/thprac). Press **F9** to open it
-(the game pauses while the panel is open):
+(the game loop freezes while the panel is open; this is a direct freeze, not
+the in-game ESC pause menu):
 
-- Jump: select a stage and enter it, or jump to the stage start / n-th wave /
-  midboss / final boss / a specific ECL timeline
+- Jump: select a stage and enter it, or jump to the stage start / n-th wave
+  (ordered by enemy spawn frame) / midboss / final boss / a specific frame
 - Spellcard: jump to the n-th spellcard of the current stage (auto-jumps to
   the boss first)
 - Adjust: set score, lives, bombs, and power at any time
@@ -170,8 +171,8 @@ instead of being force-injected mid-frame.
 
 The same operations are exposed on the browser console as
 `window.__th07Debug` (`finish`, `stage`, `spell`, `midboss`, `boss`, `wave`,
-`timeline`, `setScore`, `setLives`, `setBombs`, `setPower`). The finish path
-uses the normal stage-clear transition (`GameManager::CutChain()` +
+`frame`, `setScore`, `setLives`, `setBombs`, `setPower`). The finish path uses
+the normal stage-clear transition (`GameManager::CutChain()` +
 `ResultScreen::RegisterChain(1)`), so the result screen behaves like a real
 clear.
 

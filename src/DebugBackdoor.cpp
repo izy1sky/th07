@@ -11,6 +11,7 @@
 #include <vector>
 
 u16 g_DebugInjectedInput;
+bool g_DebugPaused;
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -157,20 +158,7 @@ EMSCRIPTEN_KEEPALIVE
 #endif
 void ThDebugSetPaused(i32 paused)
 {
-    if (paused)
-    {
-        if (g_GameManager.notInMenu && !g_GameManager.isInPauseMenu)
-        {
-            g_DebugInjectedInput = TH_BUTTON_MENU;
-        }
-    }
-    else
-    {
-        if (g_GameManager.isInPauseMenu)
-        {
-            g_DebugInjectedInput = TH_BUTTON_MENU;
-        }
-    }
+    g_DebugPaused = paused != 0;
 }
 
 #ifdef __EMSCRIPTEN__
@@ -290,7 +278,7 @@ static bool DebugFindBossTargets(DebugBossTarget *mid, DebugBossTarget *final)
     return true;
 }
 
-static void DebugRestartStageAndSeek(i32 timeline, i32 targetTime)
+static void DebugRestartStageToFrame(i32 targetTime)
 {
     i32 stage = g_GameManager.currentStage;
     if (stage < 1 || stage > 8 || !g_GameManager.globals)
@@ -303,7 +291,7 @@ static void DebugRestartStageAndSeek(i32 timeline, i32 targetTime)
     // being force-injected mid-frame.
     ThDebugStage(stage);
 
-    if (!g_EclManager.eclFile || timeline < 0 || timeline >= g_EclManager.eclFile->timelineCount)
+    if (!g_EclManager.eclFile)
     {
         return;
     }
@@ -313,6 +301,16 @@ static void DebugRestartStageAndSeek(i32 timeline, i32 targetTime)
         EclTimeline *tl = &g_EnemyManager.timelines[i];
         tl->timelineInstr = g_EclManager.GetTimeline(i);
         tl->timelineTime = targetTime;
+    }
+}
+
+static void DebugRestartStageAndSeek(i32 timeline, i32 targetTime)
+{
+    DebugRestartStageToFrame(targetTime);
+
+    if (!g_EclManager.eclFile || timeline < 0 || timeline >= g_EclManager.eclFile->timelineCount)
+    {
+        return;
     }
 
     EclTimeline *target = &g_EnemyManager.timelines[timeline];
@@ -465,20 +463,92 @@ void ThDebugFinalBoss()
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
-void ThDebugWave(i32 n)
+static i32 DebugCollectWaveTimes(i32 *out, i32 maxOut)
 {
-    i32 timelines[64];
-    i32 count = CollectTimelinesByOpcode(0, 1, timelines, 64);
-    if (n >= 1 && n <= count)
+    i32 count = 0;
+    if (!g_EclManager.eclFile)
     {
-        i32 tl = timelines[n - 1];
-        EclTimelineInstr *first = g_EclManager.GetTimeline(tl);
-        if (first && first->time >= 0)
+        return 0;
+    }
+
+    for (i32 t = 0; t < g_EclManager.eclFile->timelineCount; t++)
+    {
+        EclTimelineInstr *instr = g_EclManager.timelinePtr[t];
+        i32 guard = 0;
+        while (instr && instr->time >= 0 && instr->size > 0 && guard++ < 100000)
         {
-            Supervisor::DebugPrint("Debug: wave %d -> tl %d @ %d\n", n, tl, first->time);
-            DebugRestartStageAndSeek(tl, first->time);
+            if (instr->opcode == 0 || instr->opcode == 1)
+            {
+                i32 time = instr->time;
+                bool duplicate = false;
+                for (i32 i = 0; i < count; i++)
+                {
+                    if (out[i] == time)
+                    {
+                        duplicate = true;
+                        break;
+                    }
+                }
+                if (!duplicate && count < maxOut)
+                {
+                    i32 pos = count;
+                    while (pos > 0 && out[pos - 1] > time)
+                    {
+                        out[pos] = out[pos - 1];
+                        pos--;
+                    }
+                    out[pos] = time;
+                    count++;
+                }
+            }
+            instr = (EclTimelineInstr *)((u8 *)instr + instr->size);
         }
     }
+    return count;
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+void ThDebugWave(i32 n)
+{
+    i32 times[256];
+    i32 count = DebugCollectWaveTimes(times, 256);
+    if (n >= 1 && n <= count)
+    {
+        Supervisor::DebugPrint("Debug: wave %d @ frame %d\n", n, times[n - 1]);
+        DebugRestartStageToFrame(times[n - 1]);
+    }
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+i32 ThDebugGetWaveCount()
+{
+    i32 times[256];
+    return DebugCollectWaveTimes(times, 256);
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+void ThDebugFrame(i32 frame)
+{
+    if (frame < 0 || !g_GameManager.globals)
+    {
+        return;
+    }
+    Supervisor::DebugPrint("Debug: frame %d\n", frame);
+    DebugRestartStageToFrame(frame);
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+#endif
+i32 ThDebugGetPaused()
+{
+    return g_DebugPaused ? 1 : 0;
 }
 
 #ifdef __EMSCRIPTEN__

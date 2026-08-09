@@ -2,6 +2,10 @@
 
 #include "inttypes.hpp"
 
+// Direct game freeze used by the F9 practice panel (independent of the
+// in-game ESC pause menu, so stage restarts cannot corrupt pause state).
+extern bool g_DebugPaused;
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -48,6 +52,9 @@ i32 ThDebugGetScore();
 i32 ThDebugGetLives();
 i32 ThDebugGetBombs();
 i32 ThDebugGetPower();
+void ThDebugFrame(i32 frame);
+i32 ThDebugGetWaveCount();
+i32 ThDebugGetPaused();
 
 #ifdef __cplusplus
 }
