@@ -114,8 +114,9 @@
       stp: shotType,
     };
     // 云存储不需要手势，但需要登录；失败静默即可
-    await appendHistory(lastRun);
     showResultPanel(lastRun);
+    console.log("[ToyBridge] onRunEnded", lastRun);
+    appendHistory(lastRun).catch((e) => warn("appendHistory failed", e));
   }
 
   function showResultPanel(run) {

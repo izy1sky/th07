@@ -455,6 +455,15 @@
                     return n == null ? "-" : Number(n).toLocaleString("en-US");
                 }
 
+                function withTimeout(promise, ms, fallback) {
+                    return Promise.race([
+                        promise,
+                        new Promise(function (resolve) {
+                            setTimeout(function () { resolve(fallback); }, ms);
+                        }),
+                    ]);
+                }
+
                 function layout() {
                     var canvas = document.getElementById("canvas");
                     var vw = window.innerWidth;
@@ -492,7 +501,7 @@
                 async function renderRank() {
                     rankEl.textContent = "";
                     if (!window.ToyBridge) return;
-                    var list = await ToyBridge.getRank(1, "all", 10);
+                    var list = await withTimeout(ToyBridge.getRank(1, "all", 10), 5000, []);
                     if (!list || !list.length) {
                         var li = document.createElement("li");
                         li.textContent = "暂无榜单数据（或当前环境无 Toy SDK）";
@@ -512,7 +521,7 @@
                 async function renderHistory() {
                     historyEl.textContent = "";
                     if (!window.ToyBridge) return;
-                    var list = await ToyBridge.getHistory();
+                    var list = await withTimeout(ToyBridge.getHistory(), 5000, []);
                     if (!list || !list.length) {
                         var li = document.createElement("li");
                         li.textContent = "暂无历史记录";
@@ -584,11 +593,15 @@
 
                 function show(run) {
                     lastRun = run;
-                    renderSummary(run);
-                    layout();
                     panel.style.display = "block";
+                    layout();
+                    try {
+                        renderSummary(run);
+                    } catch (e) {
+                        summaryEl.textContent = "summary render error";
+                    }
                     setStatus("");
-                    refresh();
+                    refresh().catch(function () {});
                 }
 
                 function hide() {
