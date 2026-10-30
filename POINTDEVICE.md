@@ -53,9 +53,14 @@ a death never picks an option by accident.
 
 - Web: the IndexedDB mount `/savesth07` (survives page reloads; cleared if the
   player clears site data).
-- macOS: `~/Library/Application Support/TeamShanghaiAlice/th07/`
-- Windows: `%APPDATA%\TeamShanghaiAlice\th07\`
-- Linux: `~/.local/share/TeamShanghaiAlice/th07/`
+- Desktop builds with `-DTH_EXTERNAL_ASSETS=ON`: next to the executable.
+- macOS / iOS / Android app bundles: the SDL pref path
+  (`~/Library/Application Support/TeamShanghaiAlice/th07/` on macOS).
+- Windows and Linux: the working directory.
+
+Note for desktop testing: with no `th07.cfg` the game starts full screen. Run it
+once, set "Window" in the in-game Option menu, or start from a `th07.cfg` with
+`windowed = 1`.
 
 ## Building for the web (Bilibili Toy)
 
