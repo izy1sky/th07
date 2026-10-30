@@ -199,6 +199,9 @@ if(USE_VENDORED_SDL)
     set(SDLIMAGE_LBM OFF)
     set(SDLIMAGE_PCX OFF)
     set(SDLIMAGE_PNG ON) # Pointdevice menu art
+    # Decode PNG with the bundled stb_image, so no libpng/zlib sources are needed.
+    set(SDLIMAGE_PNG_LIBPNG OFF)
+    set(SDLIMAGE_PNG_SAVE OFF)
     set(SDLIMAGE_PNM OFF)
     set(SDLIMAGE_QOI OFF)
     set(SDLIMAGE_SVG OFF)
