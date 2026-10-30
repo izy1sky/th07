@@ -102,7 +102,9 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
 
     Supervisor::DebugPrint("info : score load\r\n");
     rawData = (ScoreDatRaw *)FileSystem::OpenFile(path, 1);
-    scoreData = new ScoreDat;
+    // Value-initialized so decodedData starts as NULL: ReleaseScoreDat frees it, and the recreate
+    // path never sets it.
+    scoreData = new ScoreDat();
 
     if (!rawData)
     {
@@ -110,7 +112,7 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
         Supervisor::DebugPrint("info : score recreate\r\n");
         SAFE_FREE(rawData);
         SAFE_DELETE(scoreData);
-        scoreData = new ScoreDat;
+        scoreData = new ScoreDat();
         scoreData->raw.dataOffset = sizeof(ScoreDatRaw);
         scoreData->raw.fileLength = sizeof(ScoreDatRaw);
         goto INIT_SCORES;
@@ -119,7 +121,7 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
     if (g_LastFileSize < sizeof(ScoreDatRaw))
     {
         Supervisor::DebugPrint("warning : score.dat size is short\r\n");
-        delete scoreData;
+        // RECREATE_SCORE deletes scoreData itself; deleting it here too was a double free.
         goto RECREATE_SCORE;
     }
 
@@ -1384,7 +1386,7 @@ ZunResult ResultScreen::HandleReplaySaveKeyboard()
             {
                 char filename[32];
                 snprintf(filename, sizeof(filename), "th7_%.2d.rpy", vmIdx + 1);
-                std::string replayPath = fs::path(FileSystem::GetPrefPath("replay")) / filename;
+                std::string replayPath = (fs::path(FileSystem::GetPrefPath("replay")) / filename).string();
                 replayFile = (ReplayFile *)FileSystem::OpenFile(replayPath.c_str(), 1);
                 if (!replayFile)
                 {
@@ -1535,7 +1537,7 @@ ZunResult ResultScreen::HandleReplaySaveKeyboard()
             {
                 char filename[32];
                 snprintf(filename, sizeof(filename), "th7_%.2d.rpy", this->chosenReplayIdx + 1);
-                std::string replayPath = fs::path(FileSystem::GetPrefPath("replay")) / filename;
+                std::string replayPath = (fs::path(FileSystem::GetPrefPath("replay")) / filename).string();
                 ReplayManager::SaveReplay(replayPath.c_str(), this->replayName);
                 this->frameTimer = 0;
                 this->resultScreenState = 2;
