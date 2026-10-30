@@ -101,7 +101,8 @@
   }
 
   // C++ 结算钩子：记录最近一局，并尽力写一条云历史（≤1KB）
-  async function onRunEnded(type, score, stage, difficulty, character, shotType) {
+  // pointdevice: 1 when the run used Pointdevice Mode (unlimited retries), which never goes on a leaderboard.
+  async function onRunEnded(type, score, stage, difficulty, character, shotType, pointdevice) {
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     lastRun = {
@@ -112,6 +113,7 @@
       df: difficulty,
       c: character,
       stp: shotType,
+      pd: pointdevice ? 1 : 0,
     };
     // 云存储不需要手势，但需要登录；失败静默即可
     showResultPanel(lastRun);
@@ -129,7 +131,7 @@
 
   // 供结算页按钮调用：提交最近一局成绩（需用户手势触发首次确认）
   async function submitLastScore(board = 1, scale = 1000) {
-    if (!lastRun) return null;
+    if (!lastRun || lastRun.pd) return null;
     // 榜 1 用 score/1000（有损，页面需注明规则）
     return await submitScore(lastRun.s / scale, board);
   }

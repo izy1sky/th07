@@ -1,4 +1,5 @@
 #include "Gui.hpp"
+#include "PointDevice.hpp"
 
 #include <cstdio>
 
@@ -867,6 +868,7 @@ ZunResult GuiImpl::RunMsg()
                 g_Supervisor.PlayAudio(
                     g_Stage.stdData->bgmPaths[this->msg.curInstr->args.music.musicIdx]);
             }
+            PointDevice::OnMusicChanged(this->msg.curInstr->args.music.musicIdx);
             break;
         case MSG_TEXT_INTRODUCE:
             args = &this->msg.curInstr->args;
@@ -904,6 +906,7 @@ ZunResult GuiImpl::RunMsg()
             goto SKIP_TIME_INCREMENT;
         case MSG_FADEOUT_MUSIC:
             g_Supervisor.FadeOutMusic(4.0f);
+            PointDevice::OnMusicChanged(-1);
             break;
         case MSG_FADE_IN_EFFECT:
             BombEffects::RegisterChain(4, 0x192, 0xffffff, 0, 0);
@@ -1475,6 +1478,7 @@ void Gui::DrawGameScene()
                                     g_GameManager.globals->pointItemsCollectedForExtend,
                                     g_GameManager.globals->nextNeededPointItemsForExtend);
     }
+    PointDevice::DrawHud();
     g_AnmManager->Flush();
     if (this->showPower || g_Supervisor.cfg.disableItemDrawAroundPlayfield)
     {

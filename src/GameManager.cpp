@@ -1,4 +1,5 @@
 #include "GameManager.hpp"
+#include "PointDevice.hpp"
 
 #include <cstdio>
 
@@ -128,7 +129,8 @@ i32 GameManager::ComputeGameIntegrityCsum()
 
 void GameManager::ExtendFromPoints()
 {
-    if ((i32)this->globals->livesRemaining < 8)
+    // Lives mean nothing in Pointdevice Mode, so extends always give a bomb instead.
+    if (!PointDevice::IsRunActive() && (i32)this->globals->livesRemaining < 8)
     {
         AddLivesRemaining(1);
         g_SoundPlayer.PlaySoundByIdx(SOUND_EXTEND, 0);
@@ -149,6 +151,10 @@ void GameManager::ExtendFromPoints()
 
 void GameManager::Pause()
 {
+    if (PointDevice::OpenPauseMenu())
+    {
+        return;
+    }
     this->isInPauseMenu = 1;
     g_GameManager.arcadeRegionTopLeftPos.x = 32.0f;
     g_GameManager.arcadeRegionTopLeftPos.y = 16.0f;
@@ -259,6 +265,12 @@ u32 GameManager::OnUpdate(GameManager *arg)
     {
         return CHAIN_CALLBACK_RESULT_BREAK;
     }
+    if (PointDevice::UpdateInGameMenu())
+    {
+        return CHAIN_CALLBACK_RESULT_BREAK;
+    }
+
+    PointDevice::OnFrameStart();
 
     if (arg->globals->score >= 1000000000)
     {
@@ -766,6 +778,7 @@ ZunResult GameManager::AddedCallback(GameManager *arg)
     {
         ReplayManager::RegisterChain(0, "replay/th7_00.rpy");
     }
+    PointDevice::OnGameStart(g_Supervisor.curState != 3);
     g_Supervisor.LoadAudio(0, g_Stage.stdData->bgmPaths[0]);
     g_Supervisor.LoadAudio(1, g_Stage.stdData->bgmPaths[1]);
     if (arg->currentStage != 6)

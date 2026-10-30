@@ -10,6 +10,7 @@
 
 #include "AnmManager.hpp"
 #include "Chain.hpp"
+#include "PointDevice.hpp"
 #include "Controller.hpp"
 #include "DebugBackdoor.hpp"
 #include "FileSystem.hpp"
@@ -121,7 +122,7 @@ RenderResult GameWindow::Render()
     }
 
     g_RenderAlpha = std::clamp((f32)(this->accumulator / targetDt), 0.0f, 1.0f);
-    if (g_DebugPaused || g_GameManager.isInPauseMenu || g_GameManager.isInRetryMenu)
+    if (g_DebugPaused || g_GameManager.isInPauseMenu || g_GameManager.isInRetryMenu || PointDevice::IsMenuOpen())
     {
         g_RenderAlpha = 1.0f;
     }

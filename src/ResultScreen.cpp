@@ -1,4 +1,5 @@
 #include "ResultScreen.hpp"
+#include "PointDevice.hpp"
 
 #include <cstdio>
 #include <filesystem>
@@ -1288,7 +1289,7 @@ ZunResult ResultScreen::HandleReplaySaveKeyboard()
             {
                 interrupt = 19;
             }
-            else if (g_GameManager.globals->numRetries != 0 ||
+            else if (g_GameManager.globals->numRetries != 0 || PointDevice::IsRunActive() ||
                      Touch::WasUsedThisRun()) // it probably goes without saying that the touch mode
                                               // is wholly incompatible with replays
             {
@@ -2523,7 +2524,10 @@ ZunResult ResultScreen::DeletedCallback(ResultScreen *arg)
 
     if (arg->scoreDat)
     {
-        arg->WriteScore();
+        if (!PointDevice::IsRunActive())
+        {
+            arg->WriteScore();
+        }
         ReleaseScoreDat(arg->scoreDat);
     }
     arg->scoreDat = NULL;
@@ -2554,9 +2558,10 @@ ZunResult ResultScreen::RegisterChain(u32 type)
 #ifdef __EMSCRIPTEN__
     // Toy 集成：把结算信息交给 JS 桥（历史记录；成绩上传由页面按钮触发）
     EM_ASM(
-        { if (window.ToyBridge && ToyBridge.onRunEnded) ToyBridge.onRunEnded($0, $1, $2, $3, $4, $5); },
+        { if (window.ToyBridge && ToyBridge.onRunEnded) ToyBridge.onRunEnded($0, $1, $2, $3, $4, $5, $6); },
         (i32)type, (i32)g_GameManager.globals->score, g_GameManager.currentStage,
-        g_GameManager.difficulty, g_GameManager.character, g_GameManager.shotType);
+        g_GameManager.difficulty, g_GameManager.character, g_GameManager.shotType,
+        PointDevice::IsRunActive() ? 1 : 0);
 #endif
     Supervisor::DebugPrint("Stg.PlayTimeAll = %d\r\n", g_GameManager.playTimeAll);
     if (type == 1)

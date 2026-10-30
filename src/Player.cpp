@@ -1,4 +1,5 @@
 #include "Player.hpp"
+#include "PointDevice.hpp"
 
 #include "AnmIdx.hpp"
 #include "AnmManager.hpp"
@@ -1956,7 +1957,7 @@ i32 Player::UpdateDeath()
         this->playerSprite.blendMode = 1;
         this->previousHorizontalSpeed = 0.0f;
         this->previousVerticalSpeed = 0.0f;
-        if (this->invulnerabilityTimer.GetCurrent() >= 30)
+        if (this->invulnerabilityTimer.GetCurrent() >= 30 && !PointDevice::OnDeathFinished())
         {
             this->playerState = PLAYER_STATE_SPAWNING;
             this->positionCenter.x = g_GameManager.arcadeRegionSize.x / 2.0f;

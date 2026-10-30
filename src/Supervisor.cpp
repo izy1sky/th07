@@ -1,4 +1,5 @@
 #include "Supervisor.hpp"
+#include "PointDevice.hpp"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gamepad.h>
@@ -136,7 +137,8 @@ u32 Supervisor::OnUpdate(Supervisor *arg)
     if (!g_GameManager.slowModeSlowActive)
     {
         g_LastFrameRawInput = g_CurFrameRawInput;
-        g_CurFrameRawInput = Controller::GetInput() | Controller::ConsumePendingPressedButtons();
+        g_CurFrameRawInput =
+            Controller::GetInput() | Controller::ConsumePendingPressedButtons() | PointDevice::AutotestInput();
         g_CurFrameRawInput |= g_DebugInjectedInput;
         g_DebugInjectedInput = 0;
         g_IsEighthFrameOfHeldInput = 0;

@@ -12,6 +12,7 @@
 #include "GameErrorContext.hpp"
 #include "GameManager.hpp"
 #include "GameWindow.hpp"
+#include "PointDevice.hpp"
 #include "ResultScreen.hpp"
 #include "SoundPlayer.hpp"
 #include "Supervisor.hpp"
@@ -36,6 +37,7 @@ void AnmManager::TakeScreenshotIfRequested()
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
+    PointDevice::Init(argc, argv);
     if (g_Supervisor.LoadConfig("th07.cfg") != ZUN_SUCCESS)
     {
         return SDL_APP_FAILURE;

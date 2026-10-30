@@ -1,4 +1,5 @@
 #include "MainMenu.hpp"
+#include "PointDevice.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -116,6 +117,10 @@ u32 MainMenu::OnUpdate(MainMenu *arg)
     {
     case STATE_PRE_INPUT:
         result = arg->OnUpdatePreInput();
+        if (result == CHAIN_CALLBACK_RESULT_CONTINUE && PointDevice::MenuUpdate())
+        {
+            return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
+        }
         break;
     case STATE_SELECT_REPLAY:
         result = arg->OnUpdateSelectReplay();
@@ -2500,6 +2505,7 @@ ZunResult MainMenu::ActualAddedCallback()
 
 ZunResult MainMenu::AddedCallback(MainMenu *arg)
 {
+    PointDevice::OnReturnToMenu();
     return arg->ActualAddedCallback();
 }
 

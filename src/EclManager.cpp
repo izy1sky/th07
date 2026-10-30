@@ -1,4 +1,5 @@
 #include "EclManager.hpp"
+#include "PointDevice.hpp"
 
 #include <cstdio>
 
@@ -654,6 +655,7 @@ void EclManager::BeginSpellcard(Enemy *enemy, EclRawInstr *instr)
     }
     g_EnemyManager.spellcardInfo.isActive = 1;
     g_EnemyManager.spellcardInfo.isCapturing = 1;
+    PointDevice::RequestCheckpoint();
     g_EnemyManager.spellcardInfo.spellcardIdx = instr->args[0].us[1];
     g_EnemyManager.spellcardInfo.captureScore =
         g_SpellcardScore[g_EnemyManager.spellcardInfo.spellcardIdx];
@@ -1620,6 +1622,10 @@ restart:
                 break;
             case 112:
                 enemy->lifeCallbackThreshold[0] = GET_INT_VALUE(enemy, 0);
+                if (enemy->isBoss)
+                {
+                    PointDevice::RequestCheckpoint();
+                }
                 break;
             case 113:
                 enemy->lifeCallbackSub[0] = GET_INT_VALUE(enemy, 0);
@@ -1627,6 +1633,10 @@ restart:
             case 148:
                 enemy->lifeCallbackThreshold[GET_INT_VALUE(enemy, 0)] = GET_INT_VALUE(enemy, 1);
                 enemy->lifeCallbackSub[GET_INT_VALUE(enemy, 0)] = GET_INT_VALUE(enemy, 2);
+                if (enemy->isBoss)
+                {
+                    PointDevice::RequestCheckpoint();
+                }
                 break;
             case 114:
                 enemy->timerCallbackThreshold = GET_INT_VALUE(enemy, 0);

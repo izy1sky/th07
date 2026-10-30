@@ -703,7 +703,8 @@
                         "  Stage " + run.st +
                         "  " + (DIFFS[run.df] || run.df) +
                         "  " + (CHARS[run.c] || run.c) +
-                        (run.stp != null ? "/" + run.stp : "");
+                        (run.stp != null ? "/" + run.stp : "") +
+                        (run.pd ? "  Pointdevice" : "");
                 }
 
                 function setStatus(text) {
@@ -746,7 +747,8 @@
                             (h.d || "??") + " " +
                             (TYPES[h.t] || h.t) +
                             " St" + h.st +
-                            " " + fmtScore(h.s);
+                            " " + fmtScore(h.s) +
+                            (h.pd ? " PD" : "");
                         historyEl.appendChild(li);
                     });
                 }
@@ -805,6 +807,9 @@
 
                 function show(run) {
                     lastRun = run;
+                    // Pointdevice runs have unlimited retries, so they are kept off the leaderboard.
+                    uploadBtn.disabled = !!run.pd;
+                    uploadBtn.textContent = run.pd ? "Pointdevice 成绩不上榜" : "授权并上传成绩";
                     panel.style.display = "block";
                     layout();
                     try {
