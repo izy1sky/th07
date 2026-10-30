@@ -91,14 +91,34 @@ Convert the BGM to MP3 so the package fits Toy's 140 MB limit (this replaces
 python3 tools/convert_bgm_web.py --bitrate 192k
 ```
 
-Build and serve:
+Build and serve on macOS / Linux:
 
 ```bash
 source ~/emsdk/emsdk_env.sh
 emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build-web
-./serve-web.sh            # Windows: .\serve-web.ps1
+./serve-web.sh
 ```
+
+On Windows (PowerShell), the same steps:
+
+```powershell
+git clone -b feat/pointdevice-mode https://github.com/izy1sky/th07.git
+cd th07
+git submodule update --init --depth 1
+git -C vendored/SDL_ttf submodule update --init --depth 1 external/freetype external/harfbuzz external/plutosvg external/plutovg
+# put th07.dat, thbgm.dat and msgothic.ttc in assets\, then:
+py tools\convert_bgm_web.py --bitrate 192k
+& C:\emsdk\emsdk_env.ps1             # wherever emsdk is installed
+emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-web
+.\serve-web.ps1
+```
+
+The tools can be installed with winget if you don't have them:
+`winget install Kitware.CMake Ninja-build.Ninja Gyan.FFmpeg Python.Python.3.12`.
+If PowerShell refuses to run `.ps1` scripts, allow them for this window only:
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
 
 Open `http://localhost:8123/th07.html`. For Toy, upload the contents of
 `build-web/` the same way as before (`th07.html`, `th07.js`, `th07.wasm`,
