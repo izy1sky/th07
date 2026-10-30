@@ -107,6 +107,9 @@ struct Snapshot
     std::vector<AnmVm> stageQuadVms;
     std::vector<i8> stageObjectFlags;
     i32 songIdx;
+    // Where the music was, so a rewind takes the music back too.
+    bool hasBgmCursor;
+    u64 bgmCursor;
 };
 
 // What a saved run keeps: the selection, the stage, and the stats that stage
@@ -695,6 +698,7 @@ static void TakeCheckpoint()
         g_Snapshot.stageObjectFlags[i] = g_Stage.objects[i]->flags;
     }
     g_Snapshot.songIdx = g_State.songIdx;
+    g_Snapshot.hasBgmCursor = g_SoundPlayer.GetBgmCursor(&g_Snapshot.bgmCursor);
     g_Snapshot.valid = true;
 
     g_State.checkpointWanted = false;
@@ -751,6 +755,14 @@ static void RestoreCheckpoint()
         }
     }
     g_State.songIdx = g_Snapshot.songIdx;
+    if (g_Snapshot.hasBgmCursor)
+    {
+        // A track change above is only queued; start it before seeking.
+        while (g_SoundPlayer.ProcessQueues())
+            ;
+        PD_LOG("music back to frame %llu", (unsigned long long)g_Snapshot.bgmCursor);
+        g_SoundPlayer.SeekBgm(g_Snapshot.bgmCursor);
+    }
 
     g_Player.playerState = PLAYER_STATE_INVULNERABLE;
     // While alive the timer counts up, so the restored value can be huge; the

@@ -120,6 +120,10 @@ struct SoundPlayer
     ZunResult ReopenBGM(const char *name);
     ZunResult StartBGM(const char *path);
     void StopBGM();
+    // Pointdevice rewinds the music with the game: the BGM cursor in PCM
+    // frames (false when none is playing), and a seek to it.
+    bool GetBgmCursor(u64 *frame);
+    void SeekBgm(u64 frame);
 
     void FadeOut(f32 duration)
     {

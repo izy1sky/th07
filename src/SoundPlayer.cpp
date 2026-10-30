@@ -794,6 +794,27 @@ ZunResult SoundPlayer::LoadBGM(i32 idx)
     return ZUN_SUCCESS;
 }
 
+bool SoundPlayer::GetBgmCursor(u64 *frame)
+{
+    ma_uint64 cursor;
+
+    if (this->backgroundMusic == NULL ||
+        ma_sound_get_cursor_in_pcm_frames(this->backgroundMusic, &cursor) != MA_SUCCESS)
+    {
+        return false;
+    }
+    *frame = cursor;
+    return true;
+}
+
+void SoundPlayer::SeekBgm(u64 frame)
+{
+    if (this->backgroundMusic != NULL)
+    {
+        ma_sound_seek_to_pcm_frame(this->backgroundMusic, frame);
+    }
+}
+
 void SoundPlayer::StopBGM()
 {
     if (this->backgroundMusic)
