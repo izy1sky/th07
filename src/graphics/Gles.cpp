@@ -154,6 +154,15 @@ ZunGraphics *GlesGraphics::Init()
 
     SDL_GL_MakeCurrent(g_GameWindow.window, ctx);
 
+#ifdef _WIN32
+    if (!LoadGlFunctions())
+    {
+        SDL_GL_DestroyContext(ctx);
+        delete gfx;
+        return nullptr;
+    }
+#endif
+
     glGenFramebuffers(1, &gfx->fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, gfx->fbo);
 

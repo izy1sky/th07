@@ -9,6 +9,8 @@
 #else
 #include <OpenGL/gl3.h>
 #endif
+#elif defined(_WIN32)
+#include "GlLoader.hpp"
 #else
 #include <GLES3/gl3.h>
 #endif

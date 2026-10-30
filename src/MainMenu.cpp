@@ -1860,7 +1860,7 @@ u32 MainMenu::OnUpdateSelectReplay()
             {
                 char filename[32];
                 snprintf(filename, sizeof(filename), "th7_%.2d.rpy", i + 1);
-                std::string replayPath = fs::path(FileSystem::GetPrefPath("replay")) / filename;
+                std::string replayPath = (fs::path(FileSystem::GetPrefPath("replay")) / filename).string();
                 file = (ReplayFile *)FileSystem::OpenFile(replayPath.c_str(), 1);
                 if (!file)
                 {

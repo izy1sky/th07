@@ -93,8 +93,20 @@ if(EMSCRIPTEN)
     )
 endif()
 
-if(NOT ANDROID AND NOT EMSCRIPTEN AND NOT APPLE)
+if(WIN32)
+    # Windows has no system GLES 3, so use the desktop GL 3.3 core path; GlLoader.cpp loads the
+    # functions newer than GL 1.1 at runtime.
+    find_package(OpenGL REQUIRED)
+    target_sources(${TH_EXEC_NAME} PRIVATE src/graphics/GlLoader.cpp)
+    target_compile_definitions(${TH_EXEC_NAME} PRIVATE USING_GL)
+elseif(NOT ANDROID AND NOT EMSCRIPTEN AND NOT APPLE)
     find_package(OpenGL COMPONENTS GLES3 REQUIRED)
+endif()
+
+if(MSVC)
+    # Read sources as UTF-8 (the Japanese strings break under other code pages) and report the
+    # real __cplusplus.
+    target_compile_options(${TH_EXEC_NAME} PRIVATE /utf-8 /Zc:__cplusplus)
 endif()
 
 if(APPLE)
@@ -213,6 +225,8 @@ target_link_libraries(${TH_EXEC_NAME} PRIVATE
 
 if(ANDROID)
     target_link_libraries(${TH_EXEC_NAME} PRIVATE GLESv3)
+elseif(WIN32)
+    target_link_libraries(${TH_EXEC_NAME} PRIVATE OpenGL::GL)
 elseif(NOT EMSCRIPTEN AND NOT APPLE)
     target_link_libraries(${TH_EXEC_NAME} PRIVATE OpenGL::GLES3)
 endif()
