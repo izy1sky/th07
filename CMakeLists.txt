@@ -198,7 +198,7 @@ if(USE_VENDORED_SDL)
     set(SDLIMAGE_JXL OFF)
     set(SDLIMAGE_LBM OFF)
     set(SDLIMAGE_PCX OFF)
-    set(SDLIMAGE_PNG OFF)
+    set(SDLIMAGE_PNG ON) # Pointdevice menu art
     set(SDLIMAGE_PNM OFF)
     set(SDLIMAGE_QOI OFF)
     set(SDLIMAGE_SVG OFF)

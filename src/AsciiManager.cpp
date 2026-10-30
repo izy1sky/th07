@@ -10,6 +10,7 @@
 #include "EnemyManager.hpp"
 #include "GameManager.hpp"
 #include "GameWindow.hpp"
+#include "PointDevice.hpp"
 #include "Gui.hpp"
 #include "Player.hpp"
 #include "SoundPlayer.hpp"
@@ -107,6 +108,7 @@ u32 AsciiManager::OnUpdate(AsciiManager *arg)
 
 u32 AsciiManager::OnDrawMenus(AsciiManager *arg)
 {
+    PointDevice::DrawMenus();
     arg->DrawStrings();
     arg->numStrings = 0;
     arg->pauseMenu.OnDraw();

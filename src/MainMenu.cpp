@@ -117,10 +117,6 @@ u32 MainMenu::OnUpdate(MainMenu *arg)
     {
     case STATE_PRE_INPUT:
         result = arg->OnUpdatePreInput();
-        if (result == CHAIN_CALLBACK_RESULT_CONTINUE && PointDevice::MenuUpdate())
-        {
-            return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
-        }
         break;
     case STATE_SELECT_REPLAY:
         result = arg->OnUpdateSelectReplay();
@@ -1490,6 +1486,8 @@ u32 MainMenu::OnUpdateSelectCharacter()
 
 u32 MainMenu::OnUpdateSelectShotType()
 {
+    bool modeChosen = false;
+
     switch (this->menuSubState)
     {
     case 0:
@@ -1597,7 +1595,16 @@ u32 MainMenu::OnUpdateSelectShotType()
         }
         break;
     case 1:
-        if (MoveCursorVertical(2))
+        // The Pointdevice / Legacy choice sits on top of the shot type screen.
+        if (PointDevice::IsModeSelectOpen())
+        {
+            if (PointDevice::UpdateModeSelect() != PointDevice::MODE_SELECT_START)
+            {
+                break;
+            }
+            modeChosen = true;
+        }
+        if (!modeChosen && MoveCursorVertical(2))
         {
             if (g_Supervisor.cfg.defaultDifficulty == 4)
             {
@@ -1645,10 +1652,14 @@ u32 MainMenu::OnUpdateSelectShotType()
                 break;
             }
         }
-        if (WAS_PRESSED_RAW(TH_BUTTON_SELECTMENU))
+        if (modeChosen || WAS_PRESSED_RAW(TH_BUTTON_SELECTMENU))
         {
             g_GameManager.shotType = this->cursor;
-            g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
+            if (!modeChosen)
+            {
+                PointDevice::OpenModeSelect();
+                break;
+            }
             g_SoundPlayer.ProcessQueues();
             if (!g_GameManager.practice)
             {
@@ -1661,6 +1672,7 @@ u32 MainMenu::OnUpdateSelectShotType()
                 {
                     g_GameManager.currentStage = g_GameManager.difficulty + DIFF_HARD;
                 }
+                PointDevice::OnGameLaunch();
                 g_Supervisor.curState = 2;
                 g_GameManager.SetReplay(0);
                 g_Supervisor.StopAudio();

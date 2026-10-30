@@ -1,12 +1,14 @@
 #include "PointDevice.hpp"
 
 #include <SDL3/SDL.h>
+#include <SDL3_image/SDL_image.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
 
+#include "AnmManager.hpp"
 #include "AsciiManager.hpp"
 #include "BulletManager.hpp"
 #include "Controller.hpp"
@@ -18,8 +20,10 @@
 #include "Gui.hpp"
 #include "ItemManager.hpp"
 #include "Player.hpp"
+#include "PointDeviceArt.hpp"
 #include "ReplayManager.hpp"
 #include "Rng.hpp"
+#include "ScreenEffect.hpp"
 #include "SoundPlayer.hpp"
 #include "Stage.hpp"
 #include "Supervisor.hpp"
@@ -40,7 +44,8 @@ namespace PointDevice
 // does not pick an option by accident.
 #define PD_MENU_INPUT_DELAY 20
 
-#define PD_SAVE_FILE "pointdevice.sav"
+// One saved run per difficulty, character and shot type.
+#define PD_SAVE_FILE_FORMAT "pointdevice-%d-%d-%d.sav"
 #define PD_SAVE_MAGIC 0x37534450 // "PDS7"
 #define PD_SAVE_VERSION 1
 
@@ -159,6 +164,27 @@ enum PauseMenuItem
     PAUSE_MENU_COUNT,
 };
 
+enum ModeSelectStep
+{
+    MODE_SELECT_CLOSED,
+    MODE_SELECT_CHOOSE_MODE,
+    MODE_SELECT_ASK_RESUME,
+};
+
+enum ModeItem
+{
+    MODE_ITEM_POINTDEVICE,
+    MODE_ITEM_LEGACY,
+    MODE_ITEM_COUNT,
+};
+
+enum ResumeItem
+{
+    RESUME_ITEM_RESUME,
+    RESUME_ITEM_NEW_RUN,
+    RESUME_ITEM_COUNT,
+};
+
 enum AutotestMode
 {
     AUTOTEST_OFF,
@@ -180,13 +206,23 @@ struct State
     MenuKind menu;
     i32 menuCursor;
     i32 menuFrames;
+    f32 menuHighlight[PAUSE_MENU_COUNT];
     bool audioPaused;
+    ModeSelectStep modeSelect;
+    i32 modeSelectCursor;
+    i32 modeSelectFrames;
+    // Frames since the mode choice opened; unlike modeSelectFrames it does not
+    // restart when the resume prompt replaces the mode choice.
+    i32 modeSelectOpenFrames;
+    // 0..1 per item, eased toward the cursor so a selection fades over.
+    f32 modeHighlight[MODE_ITEM_COUNT];
+    // The saved run for the difficulty, character and shot type being started.
     bool hasSave;
     SaveData save;
+    bool resumeChosen;
     bool resuming;
     // The stats the current stage started with, written out by "Save and quit".
     SaveData stageStart;
-    bool resumeKeyWasDown;
     bool runActive;
     bool pendingRestore;
     bool checkpointWanted;
@@ -197,7 +233,6 @@ struct State
     i32 retries;
     i32 checkpointMsgFrames;
     i32 retryMsgFrames;
-    bool menuKeyWasDown;
 };
 
 static Snapshot g_Snapshot;
@@ -211,27 +246,31 @@ static State g_State;
         std::fputc('\n', stderr);                                                                  \
     }
 
-static std::string SavePath()
+// On the web build the pref path is an IndexedDB mount, so saved runs
+// survive a page reload.
+static std::string SavePath(i32 difficulty, i32 character, i32 shotType)
 {
-    // On the web build the pref path is an IndexedDB mount, so the save
-    // survives a page reload.
-    return FileSystem::GetPrefPath(PD_SAVE_FILE);
+    char name[64];
+
+    std::snprintf(name, sizeof(name), PD_SAVE_FILE_FORMAT, difficulty, character, shotType);
+    return FileSystem::GetPrefPath(name);
 }
 
-static void LoadSave()
+// Looks up the saved run for this difficulty, character and shot type.
+static void LoadSave(i32 difficulty, i32 character, i32 shotType)
 {
     FILE *file;
     SaveData save;
 
     g_State.hasSave = false;
-    file = std::fopen(SavePath().c_str(), "rb");
+    file = std::fopen(SavePath(difficulty, character, shotType).c_str(), "rb");
     if (file == NULL)
     {
         return;
     }
     if (std::fread(&save, sizeof(save), 1, file) == 1 && save.magic == PD_SAVE_MAGIC &&
-        save.version == PD_SAVE_VERSION && save.character < 3 && save.shotType < 2 && save.difficulty <= 5 &&
-        save.stage >= 1 && save.stage <= 8)
+        save.version == PD_SAVE_VERSION && save.difficulty == difficulty && save.character == character &&
+        save.shotType == shotType && save.stage >= 1 && save.stage <= 8)
     {
         g_State.save = save;
         g_State.hasSave = true;
@@ -241,29 +280,23 @@ static void LoadSave()
 
 static bool WriteSave()
 {
+    const SaveData *save = &g_State.stageStart;
     FILE *file;
     bool ok;
 
-    file = std::fopen(SavePath().c_str(), "wb");
+    file = std::fopen(SavePath(save->difficulty, save->character, save->shotType).c_str(), "wb");
     if (file == NULL)
     {
         return false;
     }
-    ok = std::fwrite(&g_State.stageStart, sizeof(g_State.stageStart), 1, file) == 1;
-    ok = std::fclose(file) == 0 && ok;
-    if (ok)
-    {
-        g_State.save = g_State.stageStart;
-        g_State.hasSave = true;
-    }
-    return ok;
+    ok = std::fwrite(save, sizeof(*save), 1, file) == 1;
+    return std::fclose(file) == 0 && ok;
 }
 
 // A saved run is used up when it is resumed.
-static void DeleteSave()
+static void DeleteSave(const SaveData *save)
 {
-    std::remove(SavePath().c_str());
-    g_State.hasSave = false;
+    std::remove(SavePath(save->difficulty, save->character, save->shotType).c_str());
 }
 
 static const char *DifficultyName(i32 difficulty)
@@ -311,7 +344,6 @@ void Init(int argc, char *argv[])
             g_State.enabled = false;
         }
     }
-    LoadSave();
 }
 
 bool IsEnabled()
@@ -324,76 +356,143 @@ bool IsRunActive()
     return g_State.runActive;
 }
 
-// Starts the saved run the same way the main menu starts a new game.
-static void ResumeSave()
+
+// Selection highlight: 1 for the item under the cursor, 0 for the others,
+// eased over a few frames so a change of selection cross-fades.
+static void SnapHighlights(f32 *highlights, i32 count, i32 cursor)
+{
+    i32 i;
+
+    for (i = 0; i < count; i++)
+    {
+        highlights[i] = i == cursor ? 1.0f : 0.0f;
+    }
+}
+
+static void StepHighlights(f32 *highlights, i32 count, i32 cursor)
+{
+    i32 i;
+
+    for (i = 0; i < count; i++)
+    {
+        highlights[i] += ((i == cursor ? 1.0f : 0.0f) - highlights[i]) * 0.3f;
+    }
+}
+
+void OpenModeSelect()
+{
+    g_State.modeSelect = MODE_SELECT_CHOOSE_MODE;
+    g_State.modeSelectCursor = g_State.enabled ? MODE_ITEM_POINTDEVICE : MODE_ITEM_LEGACY;
+    g_State.modeSelectFrames = 0;
+    g_State.modeSelectOpenFrames = 0;
+    SnapHighlights(g_State.modeHighlight, MODE_ITEM_COUNT, g_State.modeSelectCursor);
+    g_State.resumeChosen = false;
+    g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
+}
+
+bool IsModeSelectOpen()
+{
+    return g_State.modeSelect != MODE_SELECT_CLOSED;
+}
+
+static void MoveModeSelectCursor(i32 count)
+{
+    if (WAS_PRESSED_RAW(TH_BUTTON_UP))
+    {
+        g_State.modeSelectCursor = (g_State.modeSelectCursor + count - 1) % count;
+        g_SoundPlayer.PlaySoundByIdx(SOUND_MOVE_MENU, 0);
+    }
+    if (WAS_PRESSED_RAW(TH_BUTTON_DOWN))
+    {
+        g_State.modeSelectCursor = (g_State.modeSelectCursor + 1) % count;
+        g_SoundPlayer.PlaySoundByIdx(SOUND_MOVE_MENU, 0);
+    }
+}
+
+ModeSelectResult UpdateModeSelect()
+{
+    if (g_State.modeSelect == MODE_SELECT_CLOSED)
+    {
+        return MODE_SELECT_CANCELLED;
+    }
+    g_State.modeSelectOpenFrames++;
+    StepHighlights(g_State.modeHighlight, MODE_ITEM_COUNT, g_State.modeSelectCursor);
+    if (g_State.modeSelectFrames++ < PD_MENU_INPUT_DELAY)
+    {
+        return MODE_SELECT_OPEN;
+    }
+
+    if (g_State.modeSelect == MODE_SELECT_CHOOSE_MODE)
+    {
+        MoveModeSelectCursor(MODE_ITEM_COUNT);
+        if (WAS_PRESSED_RAW(TH_BUTTON_RETURNMENU))
+        {
+            g_SoundPlayer.PlaySoundByIdx(SOUND_BACK, 0);
+            g_State.modeSelect = MODE_SELECT_CLOSED;
+            return MODE_SELECT_CANCELLED;
+        }
+        if (WAS_PRESSED_RAW(TH_BUTTON_SELECTMENU))
+        {
+            g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
+            g_State.enabled = g_State.modeSelectCursor == MODE_ITEM_POINTDEVICE;
+            if (g_State.enabled && !g_GameManager.practice)
+            {
+                // The run's difficulty is only set once the game starts.
+                LoadSave(g_Supervisor.cfg.defaultDifficulty, g_GameManager.character, g_GameManager.shotType);
+                if (g_State.hasSave)
+                {
+                    g_State.modeSelect = MODE_SELECT_ASK_RESUME;
+                    g_State.modeSelectCursor = RESUME_ITEM_RESUME;
+                    g_State.modeSelectFrames = 0;
+                    SnapHighlights(g_State.modeHighlight, RESUME_ITEM_COUNT, g_State.modeSelectCursor);
+                    return MODE_SELECT_OPEN;
+                }
+            }
+            g_State.modeSelect = MODE_SELECT_CLOSED;
+            return MODE_SELECT_START;
+        }
+        return MODE_SELECT_OPEN;
+    }
+
+    MoveModeSelectCursor(RESUME_ITEM_COUNT);
+    if (WAS_PRESSED_RAW(TH_BUTTON_RETURNMENU))
+    {
+        g_SoundPlayer.PlaySoundByIdx(SOUND_BACK, 0);
+        g_State.modeSelect = MODE_SELECT_CHOOSE_MODE;
+        g_State.modeSelectCursor = MODE_ITEM_POINTDEVICE;
+        g_State.modeSelectFrames = 0;
+        SnapHighlights(g_State.modeHighlight, MODE_ITEM_COUNT, g_State.modeSelectCursor);
+        return MODE_SELECT_OPEN;
+    }
+    if (WAS_PRESSED_RAW(TH_BUTTON_SELECTMENU))
+    {
+        g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
+        g_State.resumeChosen = g_State.modeSelectCursor == RESUME_ITEM_RESUME;
+        g_State.modeSelect = MODE_SELECT_CLOSED;
+        return MODE_SELECT_START;
+    }
+    return MODE_SELECT_OPEN;
+}
+
+void OnGameLaunch()
 {
     const SaveData *save = &g_State.save;
 
-    g_GameManager.character = save->character;
-    g_GameManager.shotType = save->shotType;
-    g_GameManager.shotTypeAndCharacter = save->character * 2 + save->shotType;
-    g_GameManager.difficulty = save->difficulty;
+    if (!g_State.resumeChosen)
+    {
+        return;
+    }
+    g_State.resumeChosen = false;
     // GameManager::AddedCallback moves on to the next stage.
     g_GameManager.currentStage = save->stage - 1;
-    g_GameManager.practice = 0;
-    g_GameManager.demo = 0;
-    g_GameManager.SetReplay(0);
-    g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
-    g_Supervisor.curState = PD_SUPERVISOR_STATE_GAMEMANAGER;
-    g_Supervisor.StopAudio();
-    while (g_SoundPlayer.ProcessQueues())
-        ;
-
-    g_State.enabled = true;
     g_State.resuming = true;
-    DeleteSave();
-}
-
-bool MenuUpdate()
-{
-    const bool *keys;
-    bool keyDown;
-    bool resumeKeyDown;
-    ZunVec3 pos;
-
-    keys = SDL_GetKeyboardState(NULL);
-    keyDown = keys != NULL && keys[SDL_SCANCODE_P];
-    if (keyDown && !g_State.menuKeyWasDown)
-    {
-        g_State.enabled = !g_State.enabled;
-        g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
-    }
-    g_State.menuKeyWasDown = keyDown;
-
-    resumeKeyDown = (keys != NULL && keys[SDL_SCANCODE_R]) ||
-                    (g_State.autotest == AUTOTEST_SAVE_QUIT && g_State.autotestSaved);
-    if (g_State.hasSave && resumeKeyDown && !g_State.resumeKeyWasDown)
-    {
-        g_State.autotestSaved = false;
-        g_State.autotestResumed = g_State.autotest == AUTOTEST_SAVE_QUIT;
-        ResumeSave();
-        return true;
-    }
-    g_State.resumeKeyWasDown = resumeKeyDown;
-
-    pos = ZunVec3(16.0f, 456.0f, 0.0f);
-    g_AsciiManager.SetColor(g_State.enabled ? PD_COLOR_LIGHT_RED : PD_COLOR_WHITE);
-    AsciiManager::AddFormatText(&g_AsciiManager, &pos, "Pointdevice Mode %s  (P)",
-                                g_State.enabled ? "ON " : "OFF");
-    if (g_State.hasSave)
-    {
-        pos = ZunVec3(16.0f, 412.0f, 0.0f);
-        g_AsciiManager.SetColor(PD_COLOR_LIGHT_CYAN);
-        AsciiManager::AddFormatText(&g_AsciiManager, &pos, "Saved run: Stage %d %s %c %s  (R)", g_State.save.stage,
-                                    CharacterName(g_State.save.character), g_State.save.shotType == 0 ? 'A' : 'B',
-                                    DifficultyName(g_State.save.difficulty));
-    }
-    g_AsciiManager.SetColor(PD_COLOR_WHITE);
-    return false;
+    g_State.autotestResumed = g_State.autotest == AUTOTEST_SAVE_QUIT;
+    DeleteSave(save);
 }
 
 void OnReturnToMenu()
 {
+    g_State.modeSelect = MODE_SELECT_CLOSED;
     g_State.runActive = false;
     g_State.pendingRestore = false;
     g_State.menu = MENU_NONE;
@@ -450,6 +549,13 @@ void OnGameStart(bool isNewGame)
             ApplyResume();
         }
         g_State.resuming = false;
+        if (g_State.runActive)
+        {
+            // Lives mean nothing here: no stars on the side panel and no
+            // life bonus at stage clear.
+            g_GameManager.SetLivesRemaining(0);
+            g_Gui.showLives = 2;
+        }
     }
     g_State.menu = MENU_NONE;
     // Snapshots point into stage data, so they never survive a stage change.
@@ -647,10 +753,9 @@ static void RestoreCheckpoint()
     g_State.songIdx = g_Snapshot.songIdx;
 
     g_Player.playerState = PLAYER_STATE_INVULNERABLE;
-    if (g_Player.invulnerabilityTimer.GetCurrent() < PD_RESTORE_INVULNERABILITY)
-    {
-        g_Player.invulnerabilityTimer = PD_RESTORE_INVULNERABILITY;
-    }
+    // While alive the timer counts up, so the restored value can be huge; the
+    // invulnerability after a rewind is always exactly this long.
+    g_Player.invulnerabilityTimer = PD_RESTORE_INVULNERABILITY;
 
     // Redraw the whole side panel.
     g_Gui.showLives = 2;
@@ -725,9 +830,23 @@ void RequestCheckpoint()
     PD_LOG("boss attack started, checkpoint requested");
 }
 
+// Practice runs cannot be saved, so their pause menu has no "Save and quit".
 static i32 MenuItemCount()
 {
-    return g_State.menu == MENU_DEATH ? (i32)DEATH_MENU_COUNT : (i32)PAUSE_MENU_COUNT;
+    if (g_State.menu == MENU_DEATH)
+    {
+        return DEATH_MENU_COUNT;
+    }
+    return g_GameManager.practice ? PAUSE_MENU_COUNT - 1 : PAUSE_MENU_COUNT;
+}
+
+static i32 PauseItemAt(i32 cursor)
+{
+    if (g_GameManager.practice && cursor >= PAUSE_MENU_SAVE_AND_QUIT)
+    {
+        return cursor + 1;
+    }
+    return cursor;
 }
 
 static void OpenMenu(MenuKind kind)
@@ -735,6 +854,7 @@ static void OpenMenu(MenuKind kind)
     g_State.menu = kind;
     g_State.menuCursor = 0;
     g_State.menuFrames = 0;
+    SnapHighlights(g_State.menuHighlight, PAUSE_MENU_COUNT, 0);
 }
 
 bool IsMenuOpen()
@@ -811,11 +931,11 @@ static void SelectPauseMenuItem(i32 item)
     {
         if (!WriteSave())
         {
-            PD_LOG("could not write %s", SavePath().c_str());
+            PD_LOG("could not write the saved run");
             g_SoundPlayer.PlaySoundByIdx(SOUND_BACK, 0);
             return;
         }
-        PD_LOG("saved run (stage %d, score %u) and quit", g_State.save.stage, g_State.save.score);
+        PD_LOG("saved run (stage %d, score %u) and quit", g_State.stageStart.stage, g_State.stageStart.score);
         g_State.autotestSaved = g_State.autotest == AUTOTEST_SAVE_QUIT;
     }
     if (item == PAUSE_MENU_RESUME)
@@ -841,6 +961,7 @@ bool UpdateInGameMenu()
     // menu gestures (swipe to move, tap to pick, two fingers to go back).
     g_GameManager.notInMenu = 0;
     count = MenuItemCount();
+    StepHighlights(g_State.menuHighlight, count, g_State.menuCursor);
     if (g_State.menuFrames++ < PD_MENU_INPUT_DELAY)
     {
         return true;
@@ -869,7 +990,7 @@ bool UpdateInGameMenu()
         }
         else
         {
-            SelectPauseMenuItem(g_State.menuCursor);
+            SelectPauseMenuItem(PauseItemAt(g_State.menuCursor));
         }
     }
     return true;
@@ -911,7 +1032,8 @@ u16 AutotestInput()
         }
         if (g_State.menu == MENU_PAUSE)
         {
-            return AutotestMenuInput(true);
+            // Only the save test saves; a pause from losing focus just resumes.
+            return AutotestMenuInput(g_State.autotest == AUTOTEST_SAVE_QUIT && !g_State.autotestResumed);
         }
         if (g_State.autotest == AUTOTEST_SAVE_QUIT && !g_State.autotestSaved && !g_State.autotestResumed &&
             g_GameManager.currentStage == 2 && g_GameManager.framesThisStage == 600)
@@ -920,8 +1042,9 @@ u16 AutotestInput()
         }
         // The autopilot cannot dodge, so it is kept invulnerable until the
         // first boss attack starts (for =savequit, always).
-        if ((!g_State.autotestBossSeen || g_State.autotest == AUTOTEST_SAVE_QUIT) &&
-            g_Player.playerState == PLAYER_STATE_ALIVE)
+        if ((!g_State.autotestBossSeen && g_Player.playerState == PLAYER_STATE_ALIVE) ||
+            (g_State.autotest == AUTOTEST_SAVE_QUIT &&
+             (g_Player.playerState == PLAYER_STATE_ALIVE || g_Player.playerState == PLAYER_STATE_INVULNERABLE)))
         {
             g_Player.playerState = PLAYER_STATE_INVULNERABLE;
             g_Player.invulnerabilityTimer = 60;
@@ -933,37 +1056,326 @@ u16 AutotestInput()
     return g_State.autotestFrames % 20 == 0 ? TH_BUTTON_SHOOT : 0;
 }
 
-static void DrawMenu()
-{
-    static const char *deathItems[DEATH_MENU_COUNT] = {"Continue from checkpoint", "Give up"};
-    static const char *pauseItems[PAUSE_MENU_COUNT] = {"Resume", "Save and quit", "Quit without saving"};
-    const char **items;
-    i32 count;
-    i32 i;
-    ZunVec3 pos;
+// ---------------------------------------------------------------------------
+// Menu art. The menus are drawn from one atlas (PointDeviceArt.hpp) made to
+// match the game's own screens: the Choose Level screen for the mode choice and
+// resume prompt, and the pause menu's look for the in-game menus.
 
-    if (g_State.menu == MENU_NONE)
+static GfxTextureHandle g_ArtTexture;
+static bool g_ArtLoaded;
+static bool g_ArtFailed;
+
+static bool LoadArt()
+{
+    SDL_Surface *png;
+    SDL_Surface *rgba;
+
+    if (g_ArtLoaded || g_ArtFailed)
+    {
+        return g_ArtLoaded;
+    }
+    png = IMG_Load_IO(SDL_IOFromConstMem(PointDeviceArt::kAtlasPng, sizeof(PointDeviceArt::kAtlasPng)), true);
+    rgba = png != NULL ? SDL_ConvertSurface(png, SDL_PIXELFORMAT_ABGR8888) : NULL;
+    if (png != NULL)
+    {
+        SDL_DestroySurface(png);
+    }
+    if (rgba == NULL)
+    {
+        PD_LOG("could not load the menu art: %s", SDL_GetError());
+        g_ArtFailed = true;
+        return false;
+    }
+    g_AnmManager->Flush();
+    g_ArtTexture = g_Supervisor.gfxDevice->CreateTexture();
+    g_Supervisor.gfxDevice->BindTexture(g_ArtTexture);
+    g_Supervisor.gfxDevice->SetTextureFilter();
+    g_Supervisor.gfxDevice->SetTextureImage(rgba->w, rgba->h, PIXEL_RGBA, PIXEL_UNSIGNED_BYTE, rgba->pixels);
+    SDL_DestroySurface(rgba);
+    // AnmManager caches the bound texture; make it bind its own again.
+    g_AnmManager->SetTexture(0);
+    g_ArtLoaded = true;
+    return true;
+}
+
+static const PointDeviceArt::Sprite *FindArt(const char *name)
+{
+    i32 i;
+
+    for (i = 0; i < (i32)ARRAY_SIZE(PointDeviceArt::kSprites); i++)
+    {
+        if (std::strcmp(PointDeviceArt::kSprites[i].name, name) == 0)
+        {
+            return &PointDeviceArt::kSprites[i];
+        }
+    }
+    return NULL;
+}
+
+static f32 ArtWidth(const char *name)
+{
+    const PointDeviceArt::Sprite *sprite = FindArt(name);
+    return sprite != NULL ? sprite->contentWidth : 0.0f;
+}
+
+// Draws a sprite with its content's top-left corner at (x, y) in 640x480 screen pixels.
+static void DrawArt(const char *name, f32 x, f32 y, f32 alpha = 1.0f)
+{
+    const PointDeviceArt::Sprite *sprite = FindArt(name);
+    VertexTex1DiffuseXyzrhw vertices[4];
+    f32 left, top, right, bottom;
+    f32 u0, v0, u1, v1;
+    i32 i;
+
+    if (sprite == NULL || !LoadArt())
     {
         return;
     }
-    items = g_State.menu == MENU_DEATH ? deathItems : pauseItems;
-    count = MenuItemCount();
+    left = x - sprite->originX;
+    top = y - sprite->originY;
+    right = left + sprite->width;
+    bottom = top + sprite->height;
+    u0 = sprite->x / (f32)PointDeviceArt::kAtlasWidth;
+    v0 = sprite->y / (f32)PointDeviceArt::kAtlasHeight;
+    u1 = (sprite->x + sprite->w) / (f32)PointDeviceArt::kAtlasWidth;
+    v1 = (sprite->y + sprite->h) / (f32)PointDeviceArt::kAtlasHeight;
+    vertices[0].pos = ZunVec3(left, top, 0.0f);
+    vertices[1].pos = ZunVec3(right, top, 0.0f);
+    vertices[2].pos = ZunVec3(left, bottom, 0.0f);
+    vertices[3].pos = ZunVec3(right, bottom, 0.0f);
+    vertices[0].textureUV.x = u0;
+    vertices[0].textureUV.y = v0;
+    vertices[1].textureUV.x = u1;
+    vertices[1].textureUV.y = v0;
+    vertices[2].textureUV.x = u0;
+    vertices[2].textureUV.y = v1;
+    vertices[3].textureUV.x = u1;
+    vertices[3].textureUV.y = v1;
+    for (i = 0; i < 4; i++)
+    {
+        vertices[i].w = 1.0f;
+        vertices[i].color.color = ((u32)(alpha * 255.0f) << 24) | 0xffffff;
+    }
 
-    pos = ZunVec3(56.0f, 176.0f, 0.0f);
-    g_AsciiManager.SetColor(PD_COLOR_LIGHT_RED);
-    g_AsciiManager.AddString(&pos, g_State.menu == MENU_DEATH ? "Hit!" : "Paused");
+    g_Supervisor.gfxDevice->BindTexture(g_ArtTexture);
+    // Modulate the texture by the vertex colour, which carries the fade.
+    g_Supervisor.gfxDevice->SetTextureArg(TEX_ARG_DIFFUSE);
+    if (!g_Supervisor.cfg.disableZBuffer)
+    {
+        g_Supervisor.gfxDevice->SetDepthMask(false);
+    }
+    g_Supervisor.gfxDevice->SetBlendMode(BLEND_ALPHA, BLEND_ALPHA);
+    g_Supervisor.gfxDevice->SetColorOp(COMPONENT_RGB, COLOR_OP_MODULATE);
+    g_Supervisor.gfxDevice->SetColorOp(COMPONENT_ALPHA, COLOR_OP_MODULATE);
+    g_Supervisor.gfxDevice->DrawPrimitiveUP(PRIM_TRIANGLE_STRIP, 2, vertices, sizeof(VertexTex1DiffuseXyzrhw));
+
+    // Leave the state the way AnmManager expects, as ScreenEffect::DrawSquare does.
+    g_AnmManager->SetVertexShader(255);
+    g_AnmManager->SetSprite(NULL);
+    g_AnmManager->SetTexture(0);
+    g_AnmManager->SetColorOp(255);
+    g_AnmManager->SetBlendMode(255);
+    g_AnmManager->SetZWriteDisable(255);
+    g_Supervisor.gfxDevice->SetTextureArg(TEX_ARG_TEXTURE);
+}
+
+static void DrawArtCentered(const char *name, f32 centerX, f32 y, f32 alpha = 1.0f)
+{
+    DrawArt(name, centerX - ArtWidth(name) / 2.0f, y, alpha);
+}
+
+// Glyph strings: digits, ',', '(', ')' and '#' for 点, drawn from "<prefix><glyph>" sprites.
+static void GlyphName(char *name, size_t size, const char *prefix, char glyph)
+{
+    const char *suffix = glyph == ',' ? "comma" : glyph == '(' ? "lp" : glyph == ')' ? "rp" : glyph == '#' ? "ten" : NULL;
+    if (suffix != NULL)
+    {
+        std::snprintf(name, size, "%s%s", prefix, suffix);
+    }
+    else
+    {
+        std::snprintf(name, size, "%s%c", prefix, glyph);
+    }
+}
+
+static f32 DrawGlyphs(const char *prefix, const char *text, f32 x, f32 y, f32 alpha = 1.0f)
+{
+    char name[32];
+
+    for (; *text != '\0'; text++)
+    {
+        GlyphName(name, sizeof(name), prefix, *text);
+        DrawArt(name, x, y, alpha);
+        x += ArtWidth(name);
+    }
+    return x;
+}
+
+static void FormatScore(char *out, size_t size, u32 score)
+{
+    char digits[16];
+    i32 length;
+    i32 i;
+    size_t used = 0;
+
+    length = std::snprintf(digits, sizeof(digits), "%u", score);
+    for (i = 0; i < length && used + 2 < size; i++)
+    {
+        if (i > 0 && (length - i) % 3 == 0)
+        {
+            out[used++] = ',';
+        }
+        out[used++] = digits[i];
+    }
+    out[used] = '\0';
+}
+
+// 0 at `start` frames, easing out to 1 over `length` frames.
+static f32 Ease(i32 frames, f32 start, f32 length)
+{
+    f32 t = (frames - start) / length;
+
+    t = t < 0.0f ? 0.0f : t > 1.0f ? 1.0f : t;
+    return 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
+}
+
+// Cross-fades between the "<base>_off" and "<base>_on" sprites.
+static void DrawArtHighlight(const char *base, f32 highlight, f32 x, f32 y, f32 alpha)
+{
+    char name[32];
+
+    std::snprintf(name, sizeof(name), "%s_off", base);
+    DrawArt(name, x, y, alpha * (1.0f - highlight));
+    std::snprintf(name, sizeof(name), "%s_on", base);
+    DrawArt(name, x, y, alpha * highlight);
+}
+
+static void DimRect(f32 left, f32 top, f32 right, f32 bottom, u32 color)
+{
+    ZunRect rect;
+
+    rect.left = left;
+    rect.top = top;
+    rect.right = right;
+    rect.bottom = bottom;
+    ScreenEffect::DrawSquare(&rect, color);
+}
+
+// Laid out like the Choose Level screen: a heading and two items on wisps.
+// The screen dims, the heading drops in, then the items drift in from the right.
+static void DrawModeSelectArt()
+{
+    const f32 *highlight = g_State.modeHighlight;
+    const f32 dim = Ease(g_State.modeSelectOpenFrames, 0.0f, 10.0f);
+    const f32 heading = Ease(g_State.modeSelectFrames, 0.0f, 12.0f);
+    f32 items[2];
+    char desc[32];
+    char text[32];
+    char score[24];
+    f32 alpha;
+    f32 x;
+    i32 i;
+
+    for (i = 0; i < 2; i++)
+    {
+        items[i] = Ease(g_State.modeSelectFrames, 4.0f + 5.0f * i, 14.0f);
+    }
+    DimRect(0.0f, 0.0f, 640.0f, 480.0f, (u32)(0x99 * dim) << 24);
+    if (g_State.modeSelect == MODE_SELECT_CHOOSE_MODE)
+    {
+        DrawArtCentered("hdr_rule", 320.0f, 34.0f - 10.0f * (1.0f - heading), heading);
+        DrawArtHighlight("item_pd", highlight[MODE_ITEM_POINTDEVICE], 226.0f + 40.0f * (1.0f - items[0]), 128.0f,
+                         items[0]);
+        DrawArtHighlight("item_legacy", highlight[MODE_ITEM_LEGACY], 180.0f + 40.0f * (1.0f - items[1]), 248.0f,
+                         items[1]);
+        return;
+    }
+    DrawArtCentered("hdr_saved", 320.0f, 34.0f - 10.0f * (1.0f - heading), heading);
+    x = 226.0f + 40.0f * (1.0f - items[0]);
+    DrawArtHighlight("item_cont", highlight[RESUME_ITEM_RESUME], x, 128.0f, items[0]);
+    // "Stage n の最初から再開する方向け (score点)" under the Continue item.
+    alpha = items[0] * (0.55f + 0.45f * highlight[RESUME_ITEM_RESUME]);
+    std::snprintf(desc, sizeof(desc), "cont_desc_%d", g_State.save.stage < 8 ? g_State.save.stage : 8);
+    DrawArt(desc, x, 189.0f, alpha);
+    FormatScore(score, sizeof(score), g_State.save.score);
+    std::snprintf(text, sizeof(text), "(%s#)", score);
+    DrawGlyphs("desc_", text, x + ArtWidth(desc) + 4.0f, 189.0f, alpha);
+    DrawArtHighlight("item_new", highlight[RESUME_ITEM_NEW_RUN], 180.0f + 40.0f * (1.0f - items[1]), 248.0f,
+                     items[1]);
+}
+
+// Laid out like the game's own pause menu. The play area dims, the title
+// drops in, then the items slide in from the left.
+static void DrawInGameMenuArt()
+{
+    static const char *deathItems[DEATH_MENU_COUNT] = {"opt_retry", "opt_giveup"};
+    static const char *pauseItems[PAUSE_MENU_COUNT] = {"opt_resume", "opt_savequit", "opt_quit"};
+    const i32 frames = g_State.menuFrames;
+    const f32 dim = Ease(frames, 0.0f, 8.0f);
+    const f32 title = Ease(frames, 0.0f, 10.0f);
+    char digits[16];
+    char name[32];
+    f32 itemsTop;
+    f32 spacing;
+    f32 item;
+    i32 count;
+    i32 i;
+
+    DimRect(32.0f, 16.0f, 416.0f, 464.0f, (u32)(0x60 * dim) << 24);
+    count = MenuItemCount();
+    if (g_State.menu == MENU_DEATH)
+    {
+        DrawArt("title_hit", 140.0f, 170.0f - 8.0f * (1.0f - title), title);
+        // "Miss · Retry n": this would be retry number n.
+        std::snprintf(digits, sizeof(digits), "%d", g_State.retries + 1);
+        DrawGlyphs("serif_", digits, 140.0f + FindArt("title_hit")->captionEnd + 4.0f, 195.0f - 8.0f * (1.0f - title),
+                   title);
+        itemsTop = 236.0f;
+        spacing = 48.0f;
+    }
+    else
+    {
+        DrawArt("title_pause", 140.0f, 160.0f - 8.0f * (1.0f - title), title);
+        itemsTop = 220.0f;
+        spacing = 44.0f;
+    }
     for (i = 0; i < count; i++)
     {
-        pos = ZunVec3(56.0f, 216.0f + 24.0f * i, 0.0f);
-        g_AsciiManager.SetColor(i == g_State.menuCursor ? PD_COLOR_WHITE : PD_COLOR_GREY);
-        AsciiManager::AddFormatText(&g_AsciiManager, &pos, "%c %s", i == g_State.menuCursor ? '>' : ' ', items[i]);
+        item = Ease(frames, 4.0f + 3.0f * i, 10.0f);
+        DrawArtHighlight(g_State.menu == MENU_DEATH ? deathItems[i] : pauseItems[PauseItemAt(i)],
+                         g_State.menuHighlight[i], 100.0f - 24.0f * (1.0f - item), itemsTop + spacing * i, item);
     }
-    if (g_State.menu == MENU_PAUSE && g_State.menuCursor == PAUSE_MENU_SAVE_AND_QUIT)
+    if (g_State.menu == MENU_PAUSE && !g_GameManager.practice)
     {
-        pos = ZunVec3(56.0f, 216.0f + 24.0f * count + 16.0f, 0.0f);
-        g_AsciiManager.SetColor(PD_COLOR_LIGHT_CYAN);
-        AsciiManager::AddFormatText(&g_AsciiManager, &pos, "Back to Stage %d start",
-                                    g_State.stageStart.stage);
+        // The hint fades with the "Save and quit" highlight.
+        std::snprintf(name, sizeof(name), "hint_%d", g_State.stageStart.stage < 8 ? g_State.stageStart.stage : 8);
+        DrawArt(name, 100.0f, itemsTop + spacing * count + 14.0f,
+                Ease(frames, 10.0f, 8.0f) * g_State.menuHighlight[PAUSE_MENU_SAVE_AND_QUIT]);
+    }
+}
+
+void DrawMenus()
+{
+    if (g_State.modeSelect == MODE_SELECT_CLOSED && (g_State.menu == MENU_NONE || !g_State.runActive))
+    {
+        return;
+    }
+    // Sprites drawn so far may still be batched; draw them first so the menus cover them.
+    g_AnmManager->Flush();
+    // The menus are laid out in whole-screen coordinates, whatever viewport the
+    // last drawn element left behind.
+    g_Supervisor.viewport.x = 0;
+    g_Supervisor.viewport.y = 0;
+    g_Supervisor.viewport.width = 640;
+    g_Supervisor.viewport.height = 480;
+    g_Supervisor.gfxDevice->SetViewport(g_Supervisor.viewport);
+    if (g_State.modeSelect != MODE_SELECT_CLOSED)
+    {
+        DrawModeSelectArt();
+    }
+    else
+    {
+        DrawInGameMenuArt();
     }
 }
 
@@ -995,7 +1407,6 @@ void DrawHud()
         pos = ZunVec3(40.0f, 440.0f, 0.0f);
         AsciiManager::AddFormatText(&g_AsciiManager, &pos, "Checkpoint");
     }
-    DrawMenu();
     g_AsciiManager.SetColor(PD_COLOR_WHITE);
 }
 
