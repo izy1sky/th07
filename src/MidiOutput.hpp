@@ -3,6 +3,7 @@
 // the midi output is basically completely unimplemented. everything here is just a stub until
 // there's a proper midi player (if there ever will be one)
 
+#include "ZunBool.hpp"
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
 
@@ -35,7 +36,7 @@ struct MidiTimer
     i32 fileIdx;
 };
 
-typedef enum MidiOpcode
+enum MidiOpcode
 {
     OPCODE_CHANNEL_1 = 1,
     OPCODE_CHANNEL_2 = 2,
@@ -75,11 +76,11 @@ typedef enum MidiOpcode
     OPCODE_RESERVED_FD = 253,
     OPCODE_ACTIVE_SENSING = 254,
     OPCODE_SYSTEM_RESET = 255
-} MidiOpcode;
+};
 
 struct MidiTrack
 {
-    u32 trackPlaying;
+    ZunBool trackPlaying;
     i32 trackLengthOther;
     u32 trackLength;
     u8 opcode;
@@ -96,9 +97,9 @@ struct MidiDevice
     ~MidiDevice();
 
     ZunResult Close();
-    u32 OpenDevice(i32 deviceID);
-    // i32 SendLongMsg(LPMIDIHDR pmh);
-    i32 SendShortMsg(u8 midiStatus, u8 firstByte, u8 secondByte);
+    ZunBool OpenDevice(i32 deviceID);
+    // ZunBool SendLongMsg(LPMIDIHDR pmh);
+    ZunBool SendShortMsg(u8 midiStatus, u8 firstByte, u8 secondByte);
 
     // HMIDIOUT handle;
     i32 deviceID;
@@ -182,10 +183,10 @@ struct MidiOutput : MidiTimer
     f32 fadeOutVolumeMultiplier;
     i32 fadeOutLastSetVolume;
     i32 unused_2d0;
-    i32 disableFadeOut;
+    ZunBool disableFadeOut;
     i32 unused_2d8;
     i32 fadeOutState;
-    i32 fadeOutFlag;
+    ZunBool fadeOutFlag;
     i32 fadeOutInterval;
     i32 fadeOutElapsedMs;
     i32 savedTempo;

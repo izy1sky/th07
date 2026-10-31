@@ -7,6 +7,7 @@
 
 #define ZUN_PI ((f32)(3.14159265358979323846))
 #define ZUN_2PI ((f32)(ZUN_PI * 2.0f))
+#define ZUN_3PI ((f32)(ZUN_PI * 3.0f))
 
 inline void sincosf(f32 *outSin, f32 *outCos, f32 angle)
 {
@@ -77,6 +78,12 @@ struct ZunVec3
         this->x = x;
         this->y = y;
         this->z = z;
+    }
+
+    void FromAngleMagnitude(f32 angle, f32 magnitude)
+    {
+        this->x = cosf(angle) * magnitude;
+        this->y = sinf(angle) * magnitude;
     }
 
     inline void Project(ZunVec3 *pV, ZunViewport *pViewport, struct ZunMatrix *pWVP);

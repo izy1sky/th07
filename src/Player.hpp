@@ -11,43 +11,50 @@ extern const char *g_ShooterTableFocus[6];
 
 typedef void (*BombCallback)(struct Player *);
 
-typedef enum PlayerState
+enum PlayerState
 {
-    PLAYER_STATE_ALIVE = 0,
-    PLAYER_STATE_SPAWNING = 1,
-    PLAYER_STATE_DEAD = 2,
-    PLAYER_STATE_INVULNERABLE = 3,
-    PLAYER_STATE_BORDER = 4
-} PlayerState;
+    PLAYER_STATE_ALIVE,
+    PLAYER_STATE_SPAWNING,
+    PLAYER_STATE_DEAD,
+    PLAYER_STATE_INVULNERABLE,
+    PLAYER_STATE_BORDER,
+};
 
-typedef enum PlayerDirection
+enum PlayerDirection
 {
-    MOVEMENT_NONE = 0,
-    MOVEMENT_UP = 1,
-    MOVEMENT_DOWN = 2,
-    MOVEMENT_LEFT = 3,
-    MOVEMENT_RIGHT = 4,
-    MOVEMENT_UP_LEFT = 5,
-    MOVEMENT_UP_RIGHT = 6,
-    MOVEMENT_DOWN_LEFT = 7,
-    MOVEMENT_DOWN_RIGHT = 8
-} PlayerDirection;
+    MOVEMENT_NONE,
+    MOVEMENT_UP,
+    MOVEMENT_DOWN,
+    MOVEMENT_LEFT,
+    MOVEMENT_RIGHT,
+    MOVEMENT_UP_LEFT,
+    MOVEMENT_UP_RIGHT,
+    MOVEMENT_DOWN_LEFT,
+    MOVEMENT_DOWN_RIGHT
+};
 
-typedef enum OptionState
+enum PlayerCollisionResult
 {
-    OPTION_HIDDEN = 0,
-    OPTION_UNFOCUSED = 1,
-    OPTION_FOCUSING = 2,
-    OPTION_FOCUSED = 3,
-    OPTION_UNFOCUSING = 4
-} OptionState;
+    PLAYER_COLLISION_NONE,
+    PLAYER_COLLISION_HIT,
+    PLAYER_COLLISION_BOMB,
+};
 
-typedef enum BorderState
+enum OptionState
 {
-    BORDER_NONE = 0,
-    BORDER_ACTIVE = 1,
-    BORDER_READY = 2
-} BorderState;
+    OPTION_HIDDEN,
+    OPTION_UNFOCUSED,
+    OPTION_FOCUSING,
+    OPTION_FOCUSED,
+    OPTION_UNFOCUSING,
+};
+
+enum BorderState
+{
+    BORDER_NONE,
+    BORDER_ACTIVE,
+    BORDER_READY,
+};
 
 struct BombProjectile
 {
@@ -62,8 +69,10 @@ struct BombProjectile
 
 struct BombClearBox
 {
-    ZunVec3 pos;
-    ZunVec3 size;
+    Float2 pos;
+    Float2 size;
+    f32 radius;
+    f32 radiusGrowth;
     i32 lifetime;
     union {
         i32 itemType;
@@ -85,15 +94,15 @@ struct PlayerBombSubInfo
 {
     i32 state;
     i32 counter;
-    f32 accel;
-    f32 prevAccel;
+    f32 custom;
+    f32 prevCustom;
     f32 speed;
     f32 angle;
-    ZunVec3 bombRegionPositions;
-    ZunVec3 prevBombRegionPositions;
-    ZunVec3 bombRegionPositionsTrails[32];
-    ZunVec3 bombRegionVelocities;
-    ZunVec3 bombRegionAcceleration;
+    ZunVec3 pos;
+    ZunVec3 prevPos;
+    ZunVec3 posHistory[32];
+    ZunVec3 velocity;
+    ZunVec3 accel;
     AnmVm vms[8];
     Effect *effect;
     ZunTimer timer;
@@ -113,8 +122,8 @@ struct PlayerBombInfo
         }
     }
 
-    i32 isInUse;
-    i32 isFocus;
+    ZunBool isInUse;
+    ZunBool isFocus;
     i32 bombDuration;
     i32 cherryDrain;
     ZunTimer bombTimer;
@@ -206,8 +215,8 @@ struct Player
     i32 CalcItemBoxCollision(ZunVec3 *center, ZunVec3 *size);
     i32 CalcKillboxCollision(ZunVec3 *center, ZunVec3 *size);
     i32 CalcLaserHitbox(ZunVec3 *center, ZunVec3 *size, ZunVec3 *origin, f32 rotation,
-                        i32 canGraze);
-    i32 CheckBombGraze(ZunVec3 *center, ZunVec3 *size);
+                        ZunBool canGraze);
+    i32 CalcBombCollision(ZunVec3 *center, ZunVec3 *size);
     i32 CalcDamageToEnemy(ZunVec3 *param_1, ZunVec3 *param_2, i32 *param_3);
     i32 CheckGraze(ZunVec3 *center, ZunVec3 *size);
 
@@ -215,8 +224,9 @@ struct Player
     i32 HandlePlayerInputs();
     void Respawn();
     void ScoreGraze(ZunVec3 *param_1);
-    BombClearBox *SpawnBombEffect(ZunVec3 *pos, f32 sizeY, f32 sizeZ, i32 lifetime, i32 itemType);
-    BombClearBox *SpawnBombProjectile(ZunVec3 *centerPosition, f32 posZ, f32 size, i32 itemType);
+    BombClearBox *SpawnGrowingBomb(ZunVec3 *pos, f32 radius, f32 radiusGrowth, i32 lifetime,
+                                   i32 itemType);
+    BombClearBox *SpawnBombProjectile(ZunVec3 *centerPosition, f32 sizeX, f32 sizeY, i32 itemType);
     static void SpawnBullets(Player *player, u32 timer);
     void StartFireBulletTimer();
 
@@ -244,14 +254,14 @@ struct Player
         bottomRight->y = center->y + size->y * 0.5f;
     }
 
-    f32 *GetPosCenterX()
+    f32 *GetPosX()
     {
-        return &this->positionCenter.x;
+        return &this->pos.x;
     }
 
-    f32 *GetPosCenterY()
+    f32 *GetPosY()
     {
-        return &this->positionCenter.y;
+        return &this->pos.y;
     }
 
     void SetFocusEffect(Effect *effect)
@@ -275,9 +285,8 @@ struct Player
         {
             for (i32 i = 0; i < 128; i++)
             {
-                this->bombInfo.subInfo[i].prevBombRegionPositions =
-                    this->bombInfo.subInfo[i].bombRegionPositions;
-                this->bombInfo.subInfo[i].prevAccel = this->bombInfo.subInfo[i].accel;
+                this->bombInfo.subInfo[i].prevPos = this->bombInfo.subInfo[i].pos;
+                this->bombInfo.subInfo[i].prevCustom = this->bombInfo.subInfo[i].custom;
                 for (i32 j = 0; j < 8; j++)
                 {
                     this->bombInfo.subInfo[i].vms[j].UpdatePrev();
@@ -288,9 +297,8 @@ struct Player
 
     AnmVm playerSprite;
     AnmVm optionsSprite[3];
-    ZunVec3 positionCenter;
-    ZunVec3 prevPositionCenter;
-    ZunVec3 prevFramePos;
+    ZunVec3 pos;
+    ZunVec3 prevPos;
     ZunVec3 hitboxTopLeft;
     ZunVec3 hitboxBottomRight;
     ZunVec3 grazeTopLeft;
@@ -310,7 +318,7 @@ struct Player
     CachedBombClearBox activeBombClearBoxesCache[96];
     i32 numActiveBombClearBoxes;
     bool dirtyBombBoxes;
-    i32 isBombing;
+    ZunBool isBombing;
     ShtEntry *shtEntries[4];
     f32 horizontalMovementSpeedMultiplierDuringBomb;
     f32 verticalMovementSpeedMultiplierDuringBomb;
@@ -323,7 +331,7 @@ struct Player
     i8 optionState;
     i8 isFocus;
     u8 bombParticleTime;
-    i8 hasBorder;
+    i8 borderState;
     // pad 2
     ZunTimer focusMovementTimer;
     PlayerDirection playerDirection;
@@ -331,7 +339,7 @@ struct Player
     f32 previousVerticalSpeed;
     ZunVec3 positionOfLastEnemyHit;
     ZunVec3 sakuyaTargetPosition;
-    i32 targetingEnemy;
+    ZunBool targetingEnemy;
     PlayerBullet bullets[96];
     PlayerBulletTimer timers[3];
     ZunTimer fireBulletTimer;
@@ -412,8 +420,8 @@ struct ShtData
     static i32 OnMissileHit(Player *player, PlayerBullet *bullet, ZunVec3 *pos);
     static i32 SpawnHitParticles(Player *player, PlayerBullet *bullet, ZunVec3 *pos);
 
-    i16 numLevels;
-    u16 entryCount;
+    i16 unused;
+    u16 numLevels;
     f32 initialBombs;
     i32 initialRespawnTimer;
     f32 hitboxRadius;

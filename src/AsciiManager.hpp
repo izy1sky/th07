@@ -5,6 +5,30 @@
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
 
+enum PauseMenuState
+{
+    PAUSE_MENU_STATE_INIT,
+    PAUSE_MENU_STATE_SELECTING_UNPAUSE,
+    PAUSE_MENU_STATE_SELECTING_RETURN,
+    PAUSE_MENU_STATE_SELECTING_RESTART,
+    PAUSE_MENU_STATE_UNPAUSING,
+    PAUSE_MENU_STATE_CONFIRM_RETURN_SELECTING_YES,
+    PAUSE_MENU_STATE_CONFIRM_RETURN_SELECTING_NO,
+    PAUSE_MENU_STATE_CONFIRM_RESTART_SELECTING_YES,
+    PAUSE_MENU_STATE_CONFIRM_RESTART_SELECTING_NO,
+    PAUSE_MENU_STATE_RETURN_TO_MENU,
+    PAUSE_MENU_STATE_RESTART_STAGE,
+};
+
+enum RetryMenuState
+{
+    RETRY_MENU_STATE_INIT,
+    RETRY_MENU_STATE_SELECTING_CONTINUE,
+    RETRY_MENU_STATE_SELECTING_RETURN,
+    RETRY_MENU_STATE_CONTINUE_GAME,
+    RETRY_MENU_STATE_RETURN_TO_MENU,
+};
+
 struct PauseMenu
 {
     PauseMenu();
@@ -27,6 +51,8 @@ struct PauseMenu
     AnmVm menuBackground;
 };
 
+#define RETRY_MENU_SPRITES 5
+
 struct RetryMenu
 {
     RetryMenu();
@@ -45,18 +71,18 @@ struct RetryMenu
 
     i32 curState;
     i32 numFrames;
-    AnmVm menuSprites[6];
+    AnmVm menuSprites[RETRY_MENU_SPRITES + 1];
     AnmVm menuBackground;
 };
 
 struct AsciiManagerPopup
 {
     u8 digits[8];
-    ZunVec3 position;
-    ZunVec3 prevPosition;
+    ZunVec3 pos;
+    ZunVec3 prevPos;
     u32 color;
     ZunTimer timer;
-    u8 inUse;
+    u8 isInUse;
     u8 characterCount;
     // pad 2
 };
@@ -64,12 +90,15 @@ struct AsciiManagerPopup
 struct AsciiManagerString
 {
     char text[64];
-    ZunVec3 position;
+    ZunVec3 pos;
     u32 color;
     Float2 scale;
-    i32 isSelected;
-    i32 isGui;
+    ZunBool isSelected;
+    ZunBool isGui;
 };
+
+#define MAX_POPUP1 720
+#define MAX_POPUP2 3
 
 struct AsciiManager
 {
@@ -84,10 +113,10 @@ struct AsciiManager
     static u32 OnDrawMenus(AsciiManager *arg);
     static u32 OnDrawPopups(AsciiManager *arg);
 
-    static void AddFormatText(AsciiManager *manager, ZunVec3 *position, const char *fmt, ...);
-    void AddString(ZunVec3 *position, const char *text);
-    void CreatePopup1(ZunVec3 *position, i32 value, u32 color);
-    void CreatePopup2(ZunVec3 *position, i32 value, u32 color);
+    static void AddFormatText(AsciiManager *manager, ZunVec3 *pos, const char *fmt, ...);
+    void AddString(ZunVec3 *pos, const char *text);
+    void CreatePopup1(ZunVec3 *pos, i32 value, u32 color);
+    void CreatePopup2(ZunVec3 *pos, i32 value, u32 color);
     void DrawPopups();
     void DrawStrings();
     void InitializeVms();
@@ -141,8 +170,8 @@ struct AsciiManager
         }
     }
 
-    AnmVm vm0;
-    AnmVm vm1;
+    AnmVm smallScorePopupVm;
+    AnmVm largeTextVm;
     AnmVm cherryGauge;
     AnmVm cherryDigit;
     AnmVm cherryBorderActive;
@@ -152,8 +181,8 @@ struct AsciiManager
     i32 numStrings;
     u32 color;
     Float2 scale;
-    i32 isGui;
-    i32 isSelected;
+    ZunBool isGui;
+    ZunBool isSelected;
     i32 uiFadeState;
     i32 fontSpacing;
     i32 nextPopupIndex1;
@@ -162,7 +191,7 @@ struct AsciiManager
     PauseMenu pauseMenu;
     RetryMenu retryMenu;
     AnmVm vm;
-    AsciiManagerPopup popups[723];
+    AsciiManagerPopup popups[MAX_POPUP1 + MAX_POPUP2];
 };
 
 extern AsciiManager g_AsciiManager;

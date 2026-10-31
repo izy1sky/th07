@@ -5,7 +5,7 @@
 #include "inttypes.hpp"
 #include "miniaudio.h"
 
-typedef enum AudioOpcode
+enum AudioOpcode
 {
     AUDIO_PRELOAD = 1,
     AUDIO_START = 2,
@@ -14,11 +14,11 @@ typedef enum AudioOpcode
     AUDIO_FADEOUT = 5,
     AUDIO_PAUSE = 6,
     AUDIO_UNPAUSE = 7
-} AudioOpcode;
+};
 
-typedef enum SoundIdx
+enum SoundIdx
 {
-    SOUND_0 = 0,
+    SOUND_SHOOTING = 0,
     SOUND_PICHUN = 4,
     SOUND_BOMB_SAKUYA_A = 5,
     SOUND_BOMB_REIMARI = 6,
@@ -30,18 +30,18 @@ typedef enum SoundIdx
     SOUND_BOMB = 14,
     SOUND_ENEMY_SPELLCARD_END = 15,
     SOUND_BOMB_SAKUMARI = 19,
-    SOUND_20 = 20,
-    SOUND_21 = 21,
-    SOUND_25 = 25,
+    SOUND_ENEMY_DAMAGED = 20,
+    SOUND_ITEM_GET = 21,
+    SOUND_DIR_CHANGING = 25,
     SOUND_EXTEND = 28,
-    SOUND_29 = 29,
+    SOUND_LOW_SPELL_TIME_WARNING = 29,
     SOUND_GRAZE = 30,
     SOUND_POWERUP = 31,
     SOUND_BORDER_ACTIVATE = 32,
     SOUND_BORDER_BREAK = 33,
     SOUND_BORDER_ACTIVATE2 = 36,
-    SOUND_37 = 37
-} SoundIdx;
+    SOUND_PAUSED = 37
+};
 
 struct ThWaveFormat
 {
@@ -102,17 +102,19 @@ struct ThBgmDataSource
     u32 segmentBytesRemaining;
 };
 
+#define MAX_SOUND_COMMANDS 31
+
 struct SoundPlayer
 {
     SoundPlayer();
 
-    i32 GetFmtIndexByName(const char *param_1);
+    i32 GetFmtIndexByName(const char *name);
     ZunResult InitializeSound();
     ZunResult InitSoundBuffers();
     ZunResult LoadBGM(i32 idx);
     ZunResult LoadFmt(const char *path);
     ZunResult LoadSound(i32 idx, const char *path);
-    void PlaySoundByIdx(i32 idx, u32 param_2);
+    void PlaySoundByIdx(i32 idx, u32 unused);
     ZunResult PreloadBGM(i32 idx, const char *path);
     i32 ProcessQueues();
     void PushCommand(AudioOpcode opcode, i32 arg1, const char *arg2);
@@ -137,6 +139,7 @@ struct SoundPlayer
     }
 
     ma_engine *engine;
+    ma_device *device;
     ma_audio_buffer *duplicateSfxData[128];
     ma_audio_buffer *sfxData[128];
     void *sfxPCMData[128];
@@ -150,7 +153,7 @@ struct SoundPlayer
     u32 bgmPreloadAllocSizes[16];
     i32 curBgmIdx;
     ThBgmFormat *bgmFmtData;
-    SoundPlayerCommand commandQueue[32];
+    SoundPlayerCommand commandQueue[MAX_SOUND_COMMANDS + 1];
     char bgmFileNames[16][256];
     char bgmArchivePath[512];
     ThBgmDataSource *bgmDataSource;

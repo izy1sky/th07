@@ -141,7 +141,7 @@ Pbg4Entry *Pbg4Archive::FindEntry(const char *filename)
     }
 
     Pbg4Entry *entry = this->entries;
-    for (i32 i = this->numOfEntries; 0 < i; --i, ++entry)
+    for (i32 i = this->numOfEntries; i > 0; --i, ++entry)
     {
         if (SDL_strcasecmp(filename, entry->filename) == 0)
         {
@@ -258,7 +258,7 @@ err:
     return false;
 }
 
-Pbg4Entry *Pbg4Archive::AllocEntries(void *param_1, i32 count, u32 dataOffset)
+Pbg4Entry *Pbg4Archive::AllocEntries(void *data, i32 count, u32 dataOffset)
 {
     Pbg4Entry *entries = NULL;
     i32 i;
@@ -271,7 +271,7 @@ Pbg4Entry *Pbg4Archive::AllocEntries(void *param_1, i32 count, u32 dataOffset)
         goto err;
     }
 
-    entryData = (u8 *)param_1;
+    entryData = (u8 *)data;
     for (i = 0; i < count; i++)
     {
         entries[i].filename = CopyFileName((char *)entryData);

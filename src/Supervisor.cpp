@@ -99,16 +99,16 @@ void Supervisor::CheckTiming()
         this->prevTime = this->curTime;
         this->prevPerfCounter = this->curPerfCounter;
 
-        this->checkTiming = 0;
+        this->checkTiming = FALSE;
     }
 
     if (this->maxTimingError >= 40 || this->timingBadCount >= 16)
     {
-        this->flags |= 8;
+        this->timingBad = 1;
     }
     else
     {
-        this->flags &= 0xfffffff7;
+        this->timingBad = 0;
     }
 }
 
@@ -175,40 +175,40 @@ u32 Supervisor::OnUpdate(Supervisor *arg)
         Supervisor::DebugPrint("scene %d -> %d\n", arg->wantedState, arg->curState);
         switch (arg->wantedState)
         {
-        case 0:
-        CASE_0:
-            arg->curState = 1;
+        case SUPERVISOR_STATE_INIT:
+        CASE_SUPERVISOR_STATE_INIT:
+            arg->curState = SUPERVISOR_STATE_MAINMENU;
             if (MainMenu::RegisterChain() != ZUN_SUCCESS)
             {
                 return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
             }
             break;
-        case 1:
+        case SUPERVISOR_STATE_MAINMENU:
             switch (arg->curState)
             {
-            case -1:
+            case SUPERVISOR_STATE_EXIT:
                 return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
-            case 2:
+            case SUPERVISOR_STATE_GAMEMANAGER:
                 if (GameManager::RegisterChain() != ZUN_SUCCESS)
                 {
                     return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
                 }
                 break;
-            case 4:
+            case SUPERVISOR_STATE_EXIT_ERROR:
                 return CHAIN_CALLBACK_RESULT_EXIT_GAME_ERROR;
-            case 5:
+            case SUPERVISOR_STATE_RESULTSCREEN:
                 if (ResultScreen::RegisterChain(0) != ZUN_SUCCESS)
                 {
                     return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
                 }
                 break;
-            case 8:
+            case SUPERVISOR_STATE_MUSICROOM:
                 if (MusicRoom::RegisterChain() != ZUN_SUCCESS)
                 {
                     return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
                 }
                 break;
-            case 9:
+            case SUPERVISOR_STATE_ENDING:
                 GameManager::CutChain();
                 if (Ending::RegisterChain() != ZUN_SUCCESS)
                 {
@@ -217,39 +217,39 @@ u32 Supervisor::OnUpdate(Supervisor *arg)
                 break;
             }
             break;
-        case 5:
+        case SUPERVISOR_STATE_RESULTSCREEN:
             switch (arg->curState)
             {
-            case -1:
+            case SUPERVISOR_STATE_EXIT:
                 return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
-            case 1:
+            case SUPERVISOR_STATE_MAINMENU:
                 arg->curState = 0;
-                goto CASE_0;
+                goto CASE_SUPERVISOR_STATE_INIT;
             }
             break;
-        case 2:
+        case SUPERVISOR_STATE_GAMEMANAGER:
             switch (arg->curState)
             {
-            case -1:
+            case SUPERVISOR_STATE_EXIT:
                 return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
-            case 1:
+            case SUPERVISOR_STATE_MAINMENU:
                 GameManager::CutChain();
-                arg->curState = 0;
+                arg->curState = SUPERVISOR_STATE_INIT;
                 ReplayManager::SaveReplay(NULL, NULL);
-                goto CASE_0;
+                goto CASE_SUPERVISOR_STATE_INIT;
                 break;
-            case 6:
+            case SUPERVISOR_STATE_RESULTSCREEN_FROM_GAME:
                 GameManager::CutChain();
                 if (ResultScreen::RegisterChain(1) != ZUN_SUCCESS)
                 {
                     return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
                 }
                 break;
-            case 10:
+            case SUPERVISOR_STATE_RESTART_FROM_BEGINNING:
                 GameManager::CutChain();
                 if (!g_GameManager.practice && g_GameManager.difficulty < 4)
                 {
-                    g_GameManager.currentStage = 0;
+                    g_GameManager.currentStage = DUMMYSTAGE;
                 }
                 else
                 {
@@ -260,46 +260,50 @@ u32 Supervisor::OnUpdate(Supervisor *arg)
                 {
                     return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
                 }
-                arg->curState = 2;
+                arg->curState = SUPERVISOR_STATE_GAMEMANAGER;
                 break;
-            case 11:
-                g_Supervisor.curState = 3;
+            case SUPERVISOR_STATE_RESTART_STAGE:
+                g_Supervisor.curState = SUPERVISOR_STATE_NEXT_STAGE;
                 GameManager::CutChain();
                 g_GameManager.currentStage--;
                 if (GameManager::RegisterChain() != ZUN_SUCCESS)
                 {
                     return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
                 }
-                arg->curState = 2;
+                arg->curState = SUPERVISOR_STATE_GAMEMANAGER;
                 break;
-            case 12:
-                g_Supervisor.curState = 3;
+            case SUPERVISOR_STATE_NEXT_STAGE_USELESS:
+                // ZUN bloat: The idea was likely to start the next stage
+                // with all stats reset to initial values, but the curState
+                // assignment literally right after makes it the exact same as
+                // SUPERVISOR_STATE_NEXT_STAGE for all intents and purposes.
+                g_Supervisor.curState = SUPERVISOR_STATE_NEXT_STAGE;
                 GameManager::CutChain();
                 if (GameManager::RegisterChain() != ZUN_SUCCESS)
                 {
                     return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
                 }
-                arg->curState = 2;
+                arg->curState = SUPERVISOR_STATE_GAMEMANAGER;
                 break;
-            case 3:
+            case SUPERVISOR_STATE_NEXT_STAGE:
                 GameManager::CutChain();
                 if (GameManager::RegisterChain() != ZUN_SUCCESS)
                 {
                     return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
                 }
-                arg->curState = 2;
+                arg->curState = SUPERVISOR_STATE_GAMEMANAGER;
                 break;
-            case 7:
+            case SUPERVISOR_STATE_REPLAY_END:
                 GameManager::CutChain();
-                arg->curState = 0;
+                arg->curState = SUPERVISOR_STATE_INIT;
                 ReplayManager::SaveReplay(NULL, NULL);
-                arg->curState = 1;
+                arg->curState = SUPERVISOR_STATE_MAINMENU;
                 if (MainMenu::RegisterChain() != ZUN_SUCCESS)
                 {
                     return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
                 }
                 break;
-            case 9:
+            case SUPERVISOR_STATE_ENDING:
                 g_GameManager.plst.playDataByDifficulty[g_GameManager.difficulty]
                     .noContinueClearCount =
                     g_GameManager.plst.playDataByDifficulty[g_GameManager.difficulty]
@@ -313,37 +317,37 @@ u32 Supervisor::OnUpdate(Supervisor *arg)
                 break;
             }
             break;
-        case 6:
+        case SUPERVISOR_STATE_RESULTSCREEN_FROM_GAME:
             switch (arg->curState)
             {
-            case -1:
+            case SUPERVISOR_STATE_EXIT:
                 ReplayManager::SaveReplay(NULL, NULL);
                 return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
-            case 1:
-                arg->curState = 0;
+            case SUPERVISOR_STATE_MAINMENU:
+                arg->curState = SUPERVISOR_STATE_INIT;
                 ReplayManager::SaveReplay(NULL, NULL);
-                goto CASE_0;
+                goto CASE_SUPERVISOR_STATE_INIT;
             }
             break;
-        case 8:
+        case SUPERVISOR_STATE_MUSICROOM:
             switch (arg->curState)
             {
-            case -1:
+            case SUPERVISOR_STATE_EXIT:
                 return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
-            case 1:
-                arg->curState = 0;
-                goto CASE_0;
+            case SUPERVISOR_STATE_MAINMENU:
+                arg->curState = SUPERVISOR_STATE_INIT;
+                goto CASE_SUPERVISOR_STATE_INIT;
             }
             break;
-        case 9:
+        case SUPERVISOR_STATE_ENDING:
             switch (arg->curState)
             {
-            case -1:
+            case SUPERVISOR_STATE_EXIT:
                 return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
-            case 1:
-                arg->curState = 0;
-                goto CASE_0;
-            case 6:
+            case SUPERVISOR_STATE_MAINMENU:
+                arg->curState = SUPERVISOR_STATE_INIT;
+                goto CASE_SUPERVISOR_STATE_INIT;
+            case SUPERVISOR_STATE_RESULTSCREEN_FROM_GAME:
                 if (ResultScreen::RegisterChain(1) != ZUN_SUCCESS)
                 {
                     return CHAIN_CALLBACK_RESULT_EXIT_GAME_SUCCESS;
@@ -407,9 +411,9 @@ ZunResult Supervisor::LoadGameData()
     if (g_Pbg4Archive.Load(FileSystem::GetBasePath("th07.dat").c_str()))
     {
         sprintf(verFile, "th07_%.4x%c.ver", 256, 98);
-        g_Supervisor.version = (char *)FileSystem::OpenFile(verFile, 0);
-        g_Supervisor.versionTableSize = g_LastFileSize;
-        if (!g_Supervisor.version)
+        g_Supervisor.versionData = (char *)FileSystem::OpenFile(verFile, 0);
+        g_Supervisor.versionDataSize = g_LastFileSize;
+        if (!g_Supervisor.versionData)
         {
             g_GameErrorContext.Fatal("error : データのバージョンが違います\n");
             return ZUN_ERROR;
@@ -481,14 +485,14 @@ i32 Supervisor::CheckVSync()
         // a ridiculously high framerate
         if (swapInterval != 0)
         {
-            g_Supervisor.vsyncEnabled = 0;
+            g_Supervisor.vsyncDisabled = FALSE;
             return 0;
         }
     }
 
     g_GameErrorContext.Log("垂直同期が取れてないか、リフレッシュレートが高すぎます\n");
     g_GameErrorContext.Log("強制６０フレームモードで動作します\n");
-    g_Supervisor.vsyncEnabled = 1;
+    g_Supervisor.vsyncDisabled = TRUE;
     return 0;
 }
 
@@ -508,8 +512,8 @@ ZunResult Supervisor::AddedCallback(Supervisor *arg)
         return ZUN_ERROR;
     }
     g_AnmManager->LoadSurface(0, "data/title/th07logo.jpg");
-    g_Supervisor.isInEnding = 1;
-    if (!g_Supervisor.vsyncEnabled)
+    g_Supervisor.isInEnding = TRUE;
+    if (!g_Supervisor.vsyncDisabled)
     {
         CheckVSync();
     }
@@ -526,7 +530,7 @@ ZunResult Supervisor::AddedCallback(Supervisor *arg)
         }
     }
     g_AnmManager->ReleaseSurface(0);
-    arg->isInEnding = 0;
+    arg->isInEnding = FALSE;
     arg->renderSkipFrames = 0;
     arg->lastTotalPlayTimeUpdate = SDL_GetTicks();
     g_Rng.SetSeed(arg->lastTotalPlayTimeUpdate);
@@ -610,9 +614,9 @@ ZunResult Supervisor::AddedCallback(Supervisor *arg)
 
 ZunResult Supervisor::DeletedCallback(Supervisor *arg)
 {
-    SAFE_FREE(g_Supervisor.version);
+    SAFE_FREE(g_Supervisor.versionData);
     g_AnmManager->ReleaseVertexBuffer();
-    g_AnmManager->ReleaseAnm(0);
+    g_AnmManager->ReleaseAnm(ANM_FILE_TEXT);
     AsciiManager::CutChain();
     g_SoundPlayer.PushCommand(AUDIO_SHUTDOWN, 0, "dummy");
     if (arg->midiOutput)
@@ -644,14 +648,14 @@ ZunResult Supervisor::RegisterChain()
     ZunResult res;
 
     Supervisor *mgr = &g_Supervisor;
-    mgr->wantedState = 0;
-    mgr->curState = -1;
+    mgr->wantedState = SUPERVISOR_STATE_INIT;
+    mgr->curState = SUPERVISOR_STATE_EXIT;
     mgr->calcCount = 0;
     ChainElem *chain = g_Chain.CreateElem((ChainCallback)OnUpdate);
     chain->arg = mgr;
     chain->addedCallback = (ChainLifecycleCallback)AddedCallback;
     chain->deletedCallback = (ChainLifecycleCallback)DeletedCallback;
-    res = g_Chain.AddToCalcChain(chain, 0);
+    res = g_Chain.AddToCalcChain(chain, CHAIN_PRIO_CALC_SUPERVISOR);
     if (res)
     {
         return res;
@@ -659,15 +663,15 @@ ZunResult Supervisor::RegisterChain()
 
     chain = g_Chain.CreateElem((ChainCallback)OnDraw);
     chain->arg = mgr;
-    g_Chain.AddToDrawChain(chain, 15);
+    g_Chain.AddToDrawChain(chain, CHAIN_PRIO_DRAW_SUPERVISOR);
     return ZUN_SUCCESS;
 }
 
 void Supervisor::DrawFpsCounter(i32 param_1)
 {
-    ZunVec3 local_30;
-    ZunVec3 local_24;
-    u64 local_18;
+    ZunVec3 replayFpsCounterPos;
+    ZunVec3 fpsCounterPos;
+    u64 curPerfCounter;
     f32 targetFps;
     u64 curTime;
     f32 elapsedTimeInSecs;
@@ -736,17 +740,17 @@ void Supervisor::DrawFpsCounter(i32 param_1)
         {
             g_PerformanceCounter = SDL_GetPerformanceCounter();
         }
-        local_18 = SDL_GetPerformanceCounter();
-        if (local_18 < g_PerformanceCounter)
+        curPerfCounter = SDL_GetPerformanceCounter();
+        if (curPerfCounter < g_PerformanceCounter)
         {
-            g_PerformanceCounter = local_18;
+            g_PerformanceCounter = curPerfCounter;
             g_NumFramesSinceLastTime = 0;
         }
-        if (local_18 - g_PerformanceCounter >= g_Supervisor.perfFrequency / 2)
+        if (curPerfCounter - g_PerformanceCounter >= g_Supervisor.perfFrequency / 2)
         {
             elapsedTimeInSecs =
-                (f32)(local_18 - g_PerformanceCounter) / (f32)g_Supervisor.perfFrequency;
-            g_PerformanceCounter = local_18;
+                (f32)(curPerfCounter - g_PerformanceCounter) / (f32)g_Supervisor.perfFrequency;
+            g_PerformanceCounter = curPerfCounter;
             g_FpsUpdateCounter++;
             if (g_FpsUpdateCounter % 8 == 0)
             {
@@ -759,15 +763,15 @@ void Supervisor::DrawFpsCounter(i32 param_1)
 LAB_00439350:
     if (!g_Supervisor.isInEnding && param_1 != 0)
     {
-        local_24.x = 512.0f;
-        local_24.y = 464.0f;
-        local_24.z = 0.0f;
-        g_AsciiManager.AddString(&local_24, g_FpsCounterBuffer);
+        fpsCounterPos.x = 512.0f;
+        fpsCounterPos.y = 464.0f;
+        fpsCounterPos.z = 0.0f;
+        g_AsciiManager.AddString(&fpsCounterPos, g_FpsCounterBuffer);
         if (g_GameManager.replay && g_GameManager.notInMenu)
         {
-            local_30.x = 384.0f;
-            local_30.y = 448.0f;
-            local_30.z = 0.0f;
+            replayFpsCounterPos.x = 384.0f;
+            replayFpsCounterPos.y = 448.0f;
+            replayFpsCounterPos.z = 0.0f;
             if (g_Supervisor.isFpsBad)
             {
                 g_AsciiManager.color = 0xffff4040;
@@ -776,7 +780,7 @@ LAB_00439350:
             {
                 g_AsciiManager.color = 0xffffffd0;
             }
-            g_AsciiManager.AddString(&local_30, g_ReplayFpsBuffer);
+            g_AsciiManager.AddString(&replayFpsCounterPos, g_ReplayFpsBuffer);
             g_AsciiManager.color = 0xffffffff;
         }
     }
@@ -784,7 +788,7 @@ LAB_00439350:
 
 void ZunTimer::Increment(i32 value)
 {
-    if ((g_Supervisor.flags >> 5 & 1) != 0)
+    if (g_Supervisor.forceIntegerTimer)
     {
         this->current++;
         this->subFrame = 0.0f;
@@ -816,7 +820,7 @@ void ZunTimer::Increment(i32 value)
 
 void ZunTimer::Decrement(i32 value)
 {
-    if ((g_Supervisor.flags >> 5 & 1) != 0)
+    if (g_Supervisor.forceIntegerTimer)
     {
         this->current--;
         this->subFrame = 0.0f;
@@ -863,15 +867,14 @@ void Supervisor::TickTimer(i32 *frames, f32 *subframes)
     }
 }
 
-// ZUN name: snapShotScreen
-i32 Supervisor::SnapshotScreen(const char *param_1)
+i32 Supervisor::TakeSnapshot(const char *filename)
 {
     u8 *pixels = new u8[640 * 480 * 4];
     this->gfxDevice->ReadPixels(0, 0, 640, 480, pixels);
 
     SDL_Surface *surf = SDL_CreateSurfaceFrom(640, 480, SDL_PIXELFORMAT_RGBA32, pixels, 640 * 4);
 
-    SDL_SaveBMP(surf, FileSystem::GetPrefPath(param_1).c_str());
+    SDL_SaveBMP(surf, FileSystem::GetPrefPath(filename).c_str());
     SDL_DestroySurface(surf);
     delete[] pixels;
     return 0;
@@ -952,7 +955,7 @@ ZunResult Supervisor::LoadConfig(const char *configFilename)
         }
         g_ControllerMapping = g_Supervisor.cfg.controllerMapping;
     }
-    g_Supervisor.cfg.loaded = 1;
+    g_Supervisor.cfg.colorAddEmulation = 1;
     if (this->cfg.noVertexBuffers)
     {
         g_GameErrorContext.Log("頂点バッファの使用を抑制します\n");
@@ -981,7 +984,7 @@ ZunResult Supervisor::LoadConfig(const char *configFilename)
     {
         g_GameErrorContext.Log("デプステストを抑制します\n");
     }
-    this->vsyncEnabled = 0;
+    this->vsyncDisabled = FALSE;
     this->cfg.unused = 0;
     if (this->cfg.disableTextureBlend)
     {
@@ -1009,10 +1012,10 @@ ZunResult Supervisor::LoadConfig(const char *configFilename)
     {
         g_GameErrorContext.Log("ＢＧＭをメモリに読み込みます\n");
     }
-    if (this->cfg.enableVsync)
+    if (this->cfg.disableVsync)
     {
         g_GameErrorContext.Log("垂直同期を取りません\n");
-        g_Supervisor.vsyncEnabled = 1;
+        g_Supervisor.vsyncDisabled = TRUE;
     }
     if (FileSystem::WriteDataToFile(configFilename, &g_Supervisor.cfg, sizeof(GameConfiguration)))
     {
@@ -1082,8 +1085,8 @@ ZunResult Supervisor::PlayLoadedAudio(i32 idx)
 
 ZunResult Supervisor::PlayAudio(const char *path)
 {
-    char local_10c[256];
-    char *local_8;
+    char pathBuf[256];
+    char *pathExt;
 
     if (g_Supervisor.cfg.musicMode == MUSIC_MIDI)
     {
@@ -1096,17 +1099,17 @@ ZunResult Supervisor::PlayAudio(const char *path)
     {
         if (g_Supervisor.cfg.musicMode == MUSIC_WAV)
         {
-            strcpy(local_10c, path);
-            local_8 = strrchr(local_10c, '.');
-            if (!local_8)
+            strcpy(pathBuf, path);
+            pathExt = strrchr(pathBuf, '.');
+            if (!pathExt)
             {
                 return ZUN_ERROR;
             }
 
-            local_8[1] = 'w';
-            local_8[2] = 'a';
-            local_8[3] = 'v';
-            g_SoundPlayer.PushCommand(AUDIO_START, -1, local_10c);
+            pathExt[1] = 'w';
+            pathExt[2] = 'a';
+            pathExt[3] = 'v';
+            g_SoundPlayer.PushCommand(AUDIO_START, -1, pathBuf);
         }
         else
         {
@@ -1148,7 +1151,7 @@ ZunResult Supervisor::StopAudio()
 
 i32 Supervisor::FadeOutMusic(f32 musicFadeFrames)
 {
-    f32 local_8;
+    f32 effectiveFadeFrames;
 
     if (g_Supervisor.cfg.musicMode == MUSIC_MIDI)
     {
@@ -1163,17 +1166,17 @@ i32 Supervisor::FadeOutMusic(f32 musicFadeFrames)
         {
             if (this->effectiveFramerateMultiplier == 0.0f)
             {
-                local_8 = musicFadeFrames;
+                effectiveFadeFrames = musicFadeFrames;
             }
             else if (this->effectiveFramerateMultiplier > 1.0f)
             {
-                local_8 = musicFadeFrames;
+                effectiveFadeFrames = musicFadeFrames;
             }
             else
             {
-                local_8 = musicFadeFrames / this->effectiveFramerateMultiplier;
+                effectiveFadeFrames = musicFadeFrames / this->effectiveFramerateMultiplier;
             }
-            g_SoundPlayer.PushCommand(AUDIO_FADEOUT, local_8, "");
+            g_SoundPlayer.PushCommand(AUDIO_FADEOUT, effectiveFadeFrames, "");
         }
         else
         {
@@ -1191,9 +1194,9 @@ i32 Supervisor::IsSlowMode()
 i32 Supervisor::EnableFog()
 {
     g_AnmManager->Flush();
-    if (this->fogEnabled != 1)
+    if (this->fogEnabled != TRUE)
     {
-        this->fogEnabled = 1;
+        this->fogEnabled = TRUE;
         g_Supervisor.gfxDevice->Enable(CAPS_FOG);
         return 1;
     }
@@ -1206,7 +1209,7 @@ i32 Supervisor::DisableFog()
     g_AnmManager->Flush();
     if (this->fogEnabled)
     {
-        this->fogEnabled = 0;
+        this->fogEnabled = FALSE;
         g_Supervisor.gfxDevice->Disable(CAPS_FOG);
         return 1;
     }

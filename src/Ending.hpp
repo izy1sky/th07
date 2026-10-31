@@ -3,6 +3,17 @@
 #include "AnmVm.hpp"
 #include "Chain.hpp"
 
+enum EndingFadeType
+{
+    ENDING_FADE_NONE,
+    ENDING_FADE_OUT_BLACK,
+    ENDING_FADE_IN_BLACK,
+    ENDING_FADE_OUT_WHITE,
+    ENDING_FADE_IN_WHITE,
+};
+
+#define MAX_ENDING_SPRITES 15
+
 struct Ending
 {
     Ending()
@@ -42,7 +53,7 @@ struct Ending
     Float2 backgroundPos;
     Float2 prevBackgroundPos;
     f32 backgroundScrollSpeed;
-    AnmVm sprites[16];
+    AnmVm sprites[MAX_ENDING_SPRITES + 1];
     char *endFileData;
     i32 hasSeenEnding;
     ZunTimer timer1;

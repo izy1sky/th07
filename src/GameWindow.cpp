@@ -54,7 +54,7 @@ void GameWindow::Present()
         }
         if (i < 1000)
         {
-            g_Supervisor.SnapshotScreen(snapshotPath);
+            g_Supervisor.TakeSnapshot(snapshotPath);
         }
     }
 }
@@ -155,7 +155,7 @@ RenderResult GameWindow::Render()
     timeToRender = SDL_GetTicksNS() - timeToRender;
 
     constexpr u64 nsPerFrame = 1000000000 / 60;
-    if (g_Supervisor.vsyncEnabled && timeToRender < nsPerFrame)
+    if (g_Supervisor.vsyncDisabled && timeToRender < nsPerFrame)
     {
         // should have gotten ACTUAL vsync then
         SDL_DelayNS(nsPerFrame - timeToRender);
@@ -171,7 +171,7 @@ ZunResult GameWindow::InitInterface()
         g_Supervisor.gfxDevice = gfxInit();
         if (g_Supervisor.gfxDevice)
         {
-            g_Supervisor.flags |= 2;
+            g_Supervisor.hasLockableBackbuffer = 1;
             g_Supervisor.lockableBackBuffer = 1;
             return ZUN_SUCCESS;
         }
@@ -212,8 +212,8 @@ ZunResult GameWindow::CreateGameWindow()
     }
     else
     {
-        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, 640);
-        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, 480);
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, GAME_WINDOW_WIDTH);
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, GAME_WINDOW_HEIGHT);
     }
 #endif
 
@@ -260,8 +260,8 @@ ZunResult GameWindow::InitRendering()
 
     halfWidth = 320.0f;
     halfHeight = 240.0f;
-    aspectRatio = 1.3333334f;
-    fov = 0.5235988f;
+    aspectRatio = 4.0f / 3.0f;
+    fov = ZUN_PI / 6.0f;
     halfCameraDistance = halfHeight / tanf(fov / 2.0f);
     pUp.x = 0.0f;
     pUp.y = 1.0f;
@@ -281,8 +281,8 @@ ZunResult GameWindow::InitRendering()
 
     g_Supervisor.viewport.x = 0;
     g_Supervisor.viewport.y = 0;
-    g_Supervisor.viewport.width = 640;
-    g_Supervisor.viewport.height = 480;
+    g_Supervisor.viewport.width = GAME_WINDOW_WIDTH;
+    g_Supervisor.viewport.height = GAME_WINDOW_HEIGHT;
     g_Supervisor.viewport.minZ = 0.0f;
     g_Supervisor.viewport.maxZ = 1.0f;
     g_Supervisor.gfxDevice->SetViewport(g_Supervisor.viewport);

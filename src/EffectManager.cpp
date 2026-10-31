@@ -12,41 +12,64 @@
 #include "utils.hpp"
 #include <algorithm>
 
+// TODO: a lot of these names suck. find better names and remove script
+// comments
 EffectTypeInfo g_EffectMapping[34] = {
-    {0x2ab, NULL, NULL},
-    {0x2ac, NULL, NULL},
-    {0x2ad, NULL, NULL},
-    {0x2ae, EffectManager::UpdatePhysics, EffectManager::InitDeceleratingBurst},
-    {0x2b3, EffectManager::UpdatePhysics, EffectManager::InitDeceleratingBurstFast},
-    {0x2b4, EffectManager::UpdatePhysics, EffectManager::InitDeceleratingBurstFast},
-    {0x2b5, EffectManager::UpdatePhysics, EffectManager::InitDeceleratingBurstFast},
-    {0x2b6, EffectManager::UpdatePhysics, EffectManager::InitDeceleratingBurstFast},
-    {0x2b7, EffectManager::UpdatePhysics, EffectManager::InitDeceleratingBurstFast},
-    {0x2b8, EffectManager::UpdatePhysics, EffectManager::InitDeceleratingBurstFast},
-    {0x2b9, EffectManager::UpdatePhysics, EffectManager::InitDeceleratingBurstFast},
-    {0x2ba, EffectManager::UpdatePhysics, EffectManager::InitDeceleratingBurstFast},
-    {0x2bb, NULL, NULL},
-    {0x2bc, EffectManager::UpdateOrbitEffect, EffectManager::Init2dEffect},
-    {0x2bc, EffectManager::UpdateOrbitEffect, EffectManager::Init2dEffect},
-    {0x2bc, EffectManager::UpdateOrbitEffect, EffectManager::Init2dEffect},
-    {0x2dc, NULL, NULL},
-    {0x2af, EffectManager::UpdateGather60Frames, EffectManager::InitRandomDir},
-    {0x2b0, EffectManager::UpdateGather240Frames, EffectManager::InitRandomDir},
-    {0x2bd, EffectManager::UpdateNoOp, NULL},
-    {0x2bf, EffectManager::UpdateWeatherPhysics, EffectManager::InitWeatherForward},
-    {0x2c3, NULL, NULL},
-    {0x2c0, EffectManager::UpdateBurstEaseOut30Frames, EffectManager::InitRandomDirWithSpeed},
-    {0x304, EffectManager::UpdateAttachToCamera, NULL},
-    {0x2c2, EffectManager::UpdateAttachToPlayer, NULL},
-    {0x2da, EffectManager::UpdateNoOp, NULL},
-    {0x2bf, EffectManager::UpdateWeatherPhysics, EffectManager::InitWeatherVortex},
-    {0x2bf, EffectManager::UpdateWeatherPhysics, EffectManager::InitWeatherBackward},
-    {0x2db, EffectManager::UpdateNoOp, NULL},
-    {0x2b2, EffectManager::UpdateBurst30Frames, EffectManager::InitRandomDir},
-    {0x2bf, EffectManager::UpdateWeatherPhysics, EffectManager::InitWeatherSlow},
-    {0x2bf, EffectManager::UpdateWeatherPhysics, EffectManager::InitWeatherFalling},
-    {0x2c1, EffectManager::UpdateBurstEaseOut30Frames, EffectManager::InitRandomDirWithSpeed},
-    {0x2b1, EffectManager::UpdateGather60Frames, EffectManager::InitRandomDir},
+    {ANM_SCRIPT_BULLETS_ENEMY_DEATH_EXPLOSION, NULL, NULL},
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK1, NULL, NULL}, // script29
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK2, NULL, NULL}, // script30
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK3, EffectManager::UpdatePhysics,
+     EffectManager::InitDeceleratingBurst}, // script31
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK8, EffectManager::UpdatePhysics,
+     EffectManager::InitDeceleratingBurstFast}, // script36
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK9, EffectManager::UpdatePhysics,
+     EffectManager::InitDeceleratingBurstFast}, // script37
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK10, EffectManager::UpdatePhysics,
+     EffectManager::InitDeceleratingBurstFast}, // script38
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK11, EffectManager::UpdatePhysics,
+     EffectManager::InitDeceleratingBurstFast}, // script39
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK12, EffectManager::UpdatePhysics,
+     EffectManager::InitDeceleratingBurstFast}, // script40
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK13, EffectManager::UpdatePhysics,
+     EffectManager::InitDeceleratingBurstFast}, // script41
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK14, EffectManager::UpdatePhysics,
+     EffectManager::InitDeceleratingBurstFast}, // script42
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK15, EffectManager::UpdatePhysics,
+     EffectManager::InitDeceleratingBurstFast},   // script43
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK16, NULL, NULL}, // script44
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK17, EffectManager::UpdateOrbitEffect,
+     EffectManager::Init2dEffect}, // script45
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK17, EffectManager::UpdateOrbitEffect, EffectManager::Init2dEffect},
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK17, EffectManager::UpdateOrbitEffect, EffectManager::Init2dEffect},
+    {ANM_SCRIPT_EFFECTS_SPELLCARD_BG_ARRAY, NULL, NULL},
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK4, EffectManager::UpdateGather60Frames,
+     EffectManager::InitRandomDir}, // script32
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK5, EffectManager::UpdateGather240Frames,
+     EffectManager::InitRandomDir},                                    // script33
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK18, EffectManager::UpdateNoOp, NULL}, // script46
+    {ANM_SCRIPT_BULLETS_FALLING_WEATHER, EffectManager::UpdateWeatherPhysics,
+     EffectManager::InitWeatherForward},          // script48
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK21, NULL, NULL}, // script52
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK19, EffectManager::UpdateBurstEaseOut30Frames,
+     EffectManager::InitRandomDirWithSpeed}, // script49
+    {ANM_SCRIPT_STAGE_BG_SHOW_CRESCENT_ST3, EffectManager::UpdateAttachToCamera, NULL},
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK20, EffectManager::UpdateAttachToPlayer, NULL}, // script51
+    {ANM_SCRIPT_BULLETS_SHOW_SPELL_RING, EffectManager::UpdateNoOp, NULL},
+    {ANM_SCRIPT_BULLETS_FALLING_WEATHER, EffectManager::UpdateWeatherPhysics,
+     EffectManager::InitWeatherVortex},
+    {ANM_SCRIPT_BULLETS_FALLING_WEATHER, EffectManager::UpdateWeatherPhysics,
+     EffectManager::InitWeatherBackward},
+    {ANM_SCRIPT_BULLETS_SHOW_BORDER, EffectManager::UpdateNoOp, NULL},
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK7, EffectManager::UpdateBurst30Frames,
+     EffectManager::InitRandomDir}, // script35
+    {ANM_SCRIPT_BULLETS_FALLING_WEATHER, EffectManager::UpdateWeatherPhysics,
+     EffectManager::InitWeatherSlow},
+    {ANM_SCRIPT_BULLETS_FALLING_WEATHER, EffectManager::UpdateWeatherPhysics,
+     EffectManager::InitWeatherFalling},
+    {ANM_SCRIPT_BULLETS_RANDOM_CHERRY_PETAL, EffectManager::UpdateBurstEaseOut30Frames,
+     EffectManager::InitRandomDirWithSpeed},
+    {ANM_SCRIPT_BULLETS_ENEMY_UNK6, EffectManager::UpdateGather60Frames,
+     EffectManager::InitRandomDir}, // script34
 };
 
 EffectManager g_EffectManager;
@@ -74,16 +97,16 @@ i32 EffectManager::InitDeceleratingBurstFast(Effect *effect)
     effect->velocity.x = (g_Rng.GetRandomFloatInRange(256.0f) - 128.0f) / 12.0f;
     effect->velocity.y = (g_Rng.GetRandomFloatInRange(256.0f) - 128.0f) / 12.0f;
     effect->velocity.z = 0.0f;
-    effect->acceleration = -effect->velocity / 19.0f;
+    effect->accel = -effect->velocity / 19.0f;
     effect->velocity *= g_Supervisor.effectiveFramerateMultiplier;
-    effect->acceleration *= g_Supervisor.effectiveFramerateMultiplier;
+    effect->accel *= g_Supervisor.effectiveFramerateMultiplier;
     return 0;
 }
 
 i32 EffectManager::UpdatePhysics(Effect *effect)
 {
-    effect->pos1 += effect->velocity;
-    effect->velocity += effect->acceleration;
+    effect->pos += effect->velocity;
+    effect->velocity += effect->accel;
     return 1;
 }
 
@@ -92,56 +115,56 @@ i32 EffectManager::InitDeceleratingBurst(Effect *effect)
     effect->velocity.x = (g_Rng.GetRandomFloatInRange(256.0f) - 128.0f) * 4.0f / 33.0f;
     effect->velocity.y = (g_Rng.GetRandomFloatInRange(256.0f) - 128.0f) * 4.0f / 33.0f;
     effect->velocity.z = 0.0f;
-    effect->acceleration = -effect->velocity / 20.0f;
+    effect->accel = -effect->velocity / 20.0f;
     effect->velocity *= g_Supervisor.effectiveFramerateMultiplier;
-    effect->acceleration *= g_Supervisor.effectiveFramerateMultiplier;
+    effect->accel *= g_Supervisor.effectiveFramerateMultiplier;
     return 0;
 }
 
 i32 EffectManager::Init2dEffect(Effect *effect)
 {
-    effect->is2D = 2;
+    effect->drawType = 2;
     return 0;
 }
 
 i32 EffectManager::UpdateOrbitEffect(Effect *effect)
 {
     f32 fadeOutRatio;
-    ZunVec3 local_64;
+    ZunVec3 orbitAxis;
     f32 cosAngle;
-    ZunMatrix local_50;
+    ZunMatrix rot;
     f32 sinAngle;
-    ZunVec3 local_10;
+    ZunVec3 orbitOffset;
 
-    local_64.Normalize(&effect->direction);
-    sinAngle = sinf(effect->angularVelocity);
-    cosAngle = cosf(effect->angularVelocity);
+    orbitAxis.Normalize(&effect->direction);
+    sinAngle = sinf(effect->angleVel);
+    cosAngle = cosf(effect->angleVel);
 
-    effect->rotationQuat.x = local_64.x * sinAngle;
-    effect->rotationQuat.y = local_64.y * sinAngle;
-    effect->rotationQuat.z = local_64.z * sinAngle;
+    effect->rotationQuat.x = orbitAxis.x * sinAngle;
+    effect->rotationQuat.y = orbitAxis.y * sinAngle;
+    effect->rotationQuat.z = orbitAxis.z * sinAngle;
     effect->rotationQuat.w = cosAngle;
 
-    local_50.RotationQuaternion(&effect->rotationQuat);
+    rot.RotationQuaternion(&effect->rotationQuat);
 
-    local_10.x = local_64.y * 1.0f - local_64.z * 0.0f;
-    local_10.y = local_64.z * 0.0f - local_64.x * 1.0f;
-    local_10.z = local_64.x * 0.0f - local_64.y * 0.0f;
+    orbitOffset.x = orbitAxis.y * 1.0f - orbitAxis.z * 0.0f;
+    orbitOffset.y = orbitAxis.z * 0.0f - orbitAxis.x * 1.0f;
+    orbitOffset.z = orbitAxis.x * 0.0f - orbitAxis.y * 0.0f;
 
-    if (local_10.LengthSq() < 0.00001f)
+    if (orbitOffset.LengthSq() < 0.00001f)
     {
-        local_64 = ZunVec3(1.0f, 0.0f, 0.0f);
+        orbitAxis = ZunVec3(1.0f, 0.0f, 0.0f);
     }
     else
     {
-        local_10.Normalize(&local_10);
+        orbitOffset.Normalize(&orbitOffset);
     }
 
-    local_10 *= effect->radius;
-    local_10.TransformCoord(&local_10, &local_50);
-    local_10.z *= 6.0f;
+    orbitOffset *= effect->radius;
+    orbitOffset.TransformCoord(&orbitOffset, &rot);
+    orbitOffset.z *= 6.0f;
 
-    effect->pos1 = local_10 + effect->emitterPosition;
+    effect->pos = orbitOffset + effect->emitterPos;
 
     if ((char)effect->isFadingOut)
     {
@@ -163,8 +186,8 @@ i32 EffectManager::InitRandomDir(Effect *effect)
 {
     f32 fVar1;
 
-    effect->emitterPosition = effect->pos1;
-    effect->emitterPosition.z = 0.0f;
+    effect->emitterPos = effect->pos;
+    effect->emitterPos.z = 0.0f;
     fVar1 = g_Rng.GetRandomFloatInRange(ZUN_2PI) - ZUN_PI;
     effect->direction.x = cosf(fVar1);
     effect->direction.y = sinf(fVar1);
@@ -175,8 +198,8 @@ i32 EffectManager::InitRandomDir(Effect *effect)
 i32 EffectManager::UpdateGather60Frames(Effect *effect)
 {
     f32 distance = 256.0f - effect->timer.AsFloat() * 256.0f / 60.0f;
-    effect->pos1 = effect->direction * distance + effect->emitterPosition;
-    effect->pos1.z = 0.0f;
+    effect->pos = effect->direction * distance + effect->emitterPos;
+    effect->pos.z = 0.0f;
     return 1;
 }
 
@@ -187,35 +210,35 @@ i32 EffectManager::UpdateAttachToPlayer(Effect *effect)
         return false;
     }
 
-    effect->pos1 = g_Player.positionCenter;
+    effect->pos = g_Player.pos;
     return true;
 }
 
 i32 EffectManager::UpdateGather240Frames(Effect *effect)
 {
     f32 distance = 256.0f - effect->timer.AsFloat() * 256.0f / 240.0f;
-    effect->pos1 = effect->direction * distance + effect->emitterPosition;
+    effect->pos = effect->direction * distance + effect->emitterPos;
     return 1;
 }
 
 i32 EffectManager::UpdateBurst30Frames(Effect *effect)
 {
     f32 distance = effect->timer.AsFloat() * 256.0f / 30.0f;
-    effect->pos1 = effect->direction * distance + effect->emitterPosition;
+    effect->pos = effect->direction * distance + effect->emitterPos;
     return 1;
 }
 
-void EffectManager::DoSomethingWithEffects(ZunVec3 *param_1)
+void EffectManager::ShiftEffectsAfterCameraTeleport(ZunVec3 *shift)
 {
     i32 i;
     Effect *effect;
 
     effect = g_EffectManager.effects;
-    for (i = 0; i < 400; i++, effect++)
+    for (i = 0; i < MAX_NORMAL_EFFECTS; i++, effect++)
     {
         if (effect->effectId == 20 || effect->effectId == 31)
         {
-            effect->basePosition += *param_1;
+            effect->basePos += *shift;
         }
     }
 }
@@ -226,26 +249,26 @@ void EffectManager::ModifyEffect1eAcceleration()
     Effect *effect;
 
     effect = g_EffectManager.effects;
-    for (i = 0; i < 400; i++, effect++)
+    for (i = 0; i < MAX_NORMAL_EFFECTS; i++, effect++)
     {
         if (effect->effectId == 30)
         {
-            effect->acceleration.z = -0.01f;
+            effect->accel.z = -0.01f;
         }
     }
 }
 
 i32 EffectManager::UpdateWeatherPhysics(Effect *effect)
 {
-    ZunVec3 local_10;
+    ZunVec3 effectDir;
 
-    effect->velocity += effect->acceleration;
-    effect->basePosition += effect->velocity;
-    effect->pos1 = effect->basePosition;
+    effect->velocity += effect->accel;
+    effect->basePos += effect->velocity;
+    effect->pos = effect->basePos;
 
-    local_10 = effect->pos1 - g_Stage.cam.pos;
-    local_10.Normalize(&local_10);
-    f32 dot = g_Stage.cam.lookAtDir.Dot(&local_10);
+    effectDir = effect->pos - g_Stage.cam.pos;
+    effectDir.Normalize(&effectDir);
+    f32 dot = g_Stage.cam.lookAtDir.Dot(&effectDir);
     if (dot < 0.94f)
     {
         return 0;
@@ -253,7 +276,7 @@ i32 EffectManager::UpdateWeatherPhysics(Effect *effect)
 
     effect->vm.SetRotationZ(utils::AddNormalizeAngle(effect->vm.rotation.z, effect->vm.rotation.x));
     effect->vm.updateRotation = 1;
-    if (effect->pos1.z >= 0.0f)
+    if (effect->pos.z >= 0.0f)
     {
         return 0;
     }
@@ -270,27 +293,27 @@ i32 EffectManager::InitWeatherForward(Effect *effect)
 
     camLookAtInv = -g_Stage.cam.lookAt;
 
-    effect->basePosition = g_Stage.cam.lookAt + g_Stage.cam.pos;
-    effect->basePosition.x += g_Rng.GetRandomFloatInRange(120.0f) - 60.0f + camLookAtInv.x / 2.0f;
-    effect->basePosition.y += g_Rng.GetRandomFloatInRange(200.0f) - 100.0f + camLookAtInv.y / 2.0f;
-    effect->basePosition.z += g_Rng.GetRandomFloatInRange(100.0f) - 100.0f + camLookAtInv.z / 2.0f;
+    effect->basePos = g_Stage.cam.lookAt + g_Stage.cam.pos;
+    effect->basePos.x += g_Rng.GetRandomFloatInRange(120.0f) - 60.0f + camLookAtInv.x / 2.0f;
+    effect->basePos.y += g_Rng.GetRandomFloatInRange(200.0f) - 100.0f + camLookAtInv.y / 2.0f;
+    effect->basePos.z += g_Rng.GetRandomFloatInRange(100.0f) - 100.0f + camLookAtInv.z / 2.0f;
     effect->velocity.x = g_Rng.GetRandomFloatInRange(0.06f) - 0.03f + effect->custom.x;
     effect->velocity.y = g_Rng.GetRandomFloatInRange(0.06f) - 0.03f + effect->custom.y;
     effect->velocity.z = g_Rng.GetRandomFloatInRange(0.1f) + 0.03f + effect->custom.z;
-    effect->acceleration.x = g_Rng.GetRandomFloatInRange(0.0002f) - 0.0001f;
-    effect->acceleration.y = g_Rng.GetRandomFloatInRange(0.0002f) - 0.0001f;
+    effect->accel.x = g_Rng.GetRandomFloatInRange(0.0002f) - 0.0001f;
+    effect->accel.y = g_Rng.GetRandomFloatInRange(0.0002f) - 0.0001f;
     effect->velocity = effect->velocity * g_Supervisor.effectiveFramerateMultiplier;
-    effect->acceleration = effect->acceleration * g_Supervisor.effectiveFramerateMultiplier;
-    effect->is2D = 1;
+    effect->accel = effect->accel * g_Supervisor.effectiveFramerateMultiplier;
+    effect->drawType = 1;
     effect->vm.rotation.z = g_Rng.GetRandomFloatInRange(ZUN_2PI) - ZUN_PI;
-    effect->vm.rotation.x = g_Rng.GetRandomFloatInRange(0.03141593f) - 0.015707964f;
+    effect->vm.rotation.x = g_Rng.GetRandomFloatInRange(ZUN_PI / 100.0f) - ZUN_PI / 200.0f;
 
     chance = g_GameManager.cherry - g_GameManager.globals->cherryStart;
     chance = chance * 100 / g_GameManager.cherryMax;
 
     if ((u32)chance >= g_Rng.GetRandomU32InRange(100))
     {
-        g_AnmManager->SetActiveSprite(&effect->vm, 728);
+        g_AnmManager->SetActiveSprite(&effect->vm, ANM_SPRITE_BULLETS_CHERRY_PETAL);
         effect->vm.color.bytes.r = 255;
         effect->vm.color.bytes.g = 255;
         effect->vm.color.bytes.b = 255;
@@ -302,120 +325,120 @@ i32 EffectManager::InitWeatherVortex(Effect *effect)
 {
     i32 chance;
 
-    effect->basePosition.x = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
-    effect->basePosition.y = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
-    effect->basePosition.z = g_Rng.GetRandomFloatInRange(100.0f) - 50.0f;
-    effect->velocity.x = -effect->basePosition.y / effect->custom.x;
-    effect->velocity.y = effect->basePosition.x / effect->custom.x;
+    effect->basePos.x = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
+    effect->basePos.y = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
+    effect->basePos.z = g_Rng.GetRandomFloatInRange(100.0f) - 50.0f;
+    effect->velocity.x = -effect->basePos.y / effect->custom.x;
+    effect->velocity.y = effect->basePos.x / effect->custom.x;
     effect->velocity.z = g_Rng.GetRandomFloatInRange(0.1f) + 0.09f;
-    effect->basePosition += g_Stage.cam.lookAt / 2.0f + g_Stage.cam.pos;
+    effect->basePos += g_Stage.cam.lookAt / 2.0f + g_Stage.cam.pos;
     effect->velocity = effect->velocity * g_Supervisor.effectiveFramerateMultiplier;
-    effect->is2D = 1;
+    effect->drawType = 1;
     effect->vm.rotation.z = g_Rng.GetRandomFloatInRange(ZUN_2PI) - ZUN_PI;
-    effect->vm.rotation.x = g_Rng.GetRandomFloatInRange(0.06283186f) - 0.03141593f;
+    effect->vm.rotation.x = g_Rng.GetRandomFloatInRange(ZUN_PI / 50.0f) - ZUN_PI / 100.0f;
 
     chance = g_GameManager.cherry - g_GameManager.globals->cherryStart;
     chance = chance * 100 / g_GameManager.cherryMax;
 
     if ((u32)chance >= g_Rng.GetRandomU32InRange(100))
     {
-        g_AnmManager->SetActiveSprite(&effect->vm, 728);
+        g_AnmManager->SetActiveSprite(&effect->vm, ANM_SPRITE_BULLETS_CHERRY_PETAL);
         effect->vm.color.bytes.r = 255;
         effect->vm.color.bytes.g = 255;
         effect->vm.color.bytes.b = 255;
     }
-    effect->acceleration.x = 0.0f;
-    effect->acceleration.y = 0.0f;
-    effect->acceleration.z = 0.0f;
+    effect->accel.x = 0.0f;
+    effect->accel.y = 0.0f;
+    effect->accel.z = 0.0f;
     return 0;
 }
 
 i32 EffectManager::InitWeatherBackward(Effect *effect)
 {
-    effect->basePosition.x = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
-    effect->basePosition.y = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
-    effect->basePosition.z = g_Rng.GetRandomFloatInRange(100.0f) - 50.0f;
-    effect->velocity.x = -effect->basePosition.y / effect->custom.x;
-    effect->velocity.y = effect->basePosition.x / effect->custom.x;
+    effect->basePos.x = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
+    effect->basePos.y = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
+    effect->basePos.z = g_Rng.GetRandomFloatInRange(100.0f) - 50.0f;
+    effect->velocity.x = -effect->basePos.y / effect->custom.x;
+    effect->velocity.y = effect->basePos.x / effect->custom.x;
     effect->velocity.z = -g_Rng.GetRandomFloatInRange(0.2f) - 0.06f;
-    effect->basePosition += g_Stage.cam.lookAt / 2.0f + g_Stage.cam.pos;
+    effect->basePos += g_Stage.cam.lookAt / 2.0f + g_Stage.cam.pos;
     effect->velocity = effect->velocity * g_Supervisor.effectiveFramerateMultiplier;
-    effect->is2D = 1;
+    effect->drawType = 1;
     effect->vm.rotation.z = g_Rng.GetRandomFloatInRange(ZUN_2PI) - ZUN_PI;
-    effect->vm.rotation.x = g_Rng.GetRandomFloatInRange(0.06283186f) - 0.03141593f;
-    g_AnmManager->SetActiveSprite(&effect->vm, 728);
+    effect->vm.rotation.x = g_Rng.GetRandomFloatInRange(ZUN_PI / 50.0f) - ZUN_PI / 100.0f;
+    g_AnmManager->SetActiveSprite(&effect->vm, ANM_SPRITE_BULLETS_CHERRY_PETAL);
     effect->vm.color.bytes.r = 255;
     effect->vm.color.bytes.g = 255;
     effect->vm.color.bytes.b = 255;
-    effect->acceleration.x = 0.0f;
-    effect->acceleration.y = 0.0f;
-    effect->acceleration.z = 0.0f;
+    effect->accel.x = 0.0f;
+    effect->accel.y = 0.0f;
+    effect->accel.z = 0.0f;
     return 0;
 }
 
 i32 EffectManager::InitWeatherSlow(Effect *effect)
 {
-    effect->basePosition.x = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
-    effect->basePosition.y = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
-    effect->basePosition.z = g_Rng.GetRandomFloatInRange(100.0f) - 100.0f;
+    effect->basePos.x = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
+    effect->basePos.y = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
+    effect->basePos.z = g_Rng.GetRandomFloatInRange(100.0f) - 100.0f;
     effect->velocity.x = g_Rng.GetRandomFloatInRange(0.06f) - 0.03f + effect->custom.x;
     effect->velocity.y = g_Rng.GetRandomFloatInRange(0.06f) - 0.03f + effect->custom.y;
     effect->velocity.z = g_Rng.GetRandomFloatInRange(0.02f) + 0.01f + effect->custom.z;
-    effect->basePosition += g_Stage.cam.lookAt / 2.0f + g_Stage.cam.pos;
-    effect->is2D = 1;
+    effect->basePos += g_Stage.cam.lookAt / 2.0f + g_Stage.cam.pos;
+    effect->drawType = 1;
     effect->vm.rotation.z = g_Rng.GetRandomFloatInRange(ZUN_2PI) - ZUN_PI;
-    effect->vm.rotation.x = g_Rng.GetRandomFloatInRange(0.06283186f) - 0.03141593f;
-    g_AnmManager->SetActiveSprite(&effect->vm, 728);
+    effect->vm.rotation.x = g_Rng.GetRandomFloatInRange(ZUN_PI / 50.0f) - ZUN_PI / 100.0f;
+    g_AnmManager->SetActiveSprite(&effect->vm, ANM_SPRITE_BULLETS_CHERRY_PETAL);
     effect->vm.color.bytes.r = 255;
     effect->vm.color.bytes.g = 255;
     effect->vm.color.bytes.b = 255;
-    effect->acceleration.x = 0.0f;
-    effect->acceleration.y = 0.0f;
-    effect->acceleration.z = 0.0f;
+    effect->accel.x = 0.0f;
+    effect->accel.y = 0.0f;
+    effect->accel.z = 0.0f;
     return 0;
 }
 
 i32 EffectManager::InitWeatherFalling(Effect *effect)
 {
-    effect->basePosition.x = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
-    effect->basePosition.y = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
-    effect->basePosition.z = g_Rng.GetRandomFloatInRange(200.0f) - 0.0f;
+    effect->basePos.x = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
+    effect->basePos.y = g_Rng.GetRandomFloatInRange(160.0f) - 80.0f;
+    effect->basePos.z = g_Rng.GetRandomFloatInRange(200.0f) - 0.0f;
     effect->velocity.x = g_Rng.GetRandomFloatInRange(0.06f) - 0.03f + effect->custom.x;
     effect->velocity.y = g_Rng.GetRandomFloatInRange(0.06f) - 0.03f + effect->custom.y;
     effect->velocity.z = -g_Rng.GetRandomFloatInRange(0.1f) + effect->custom.z;
-    effect->basePosition += g_Stage.cam.lookAt / 2.0f + g_Stage.cam.pos;
+    effect->basePos += g_Stage.cam.lookAt / 2.0f + g_Stage.cam.pos;
     effect->velocity = effect->velocity * g_Supervisor.effectiveFramerateMultiplier;
-    effect->is2D = 1;
+    effect->drawType = 1;
     effect->vm.rotation.z = g_Rng.GetRandomFloatInRange(ZUN_2PI) - ZUN_PI;
-    effect->vm.rotation.x = g_Rng.GetRandomFloatInRange(0.06283186f) - 0.03141593f;
-    g_AnmManager->SetActiveSprite(&effect->vm, 728);
+    effect->vm.rotation.x = g_Rng.GetRandomFloatInRange(ZUN_PI / 50.0f) - ZUN_PI / 100.0f;
+    g_AnmManager->SetActiveSprite(&effect->vm, ANM_SPRITE_BULLETS_CHERRY_PETAL);
     effect->vm.angleVel.z *= 2;
     effect->vm.color.bytes.r = 255;
     effect->vm.color.bytes.g = 255;
     effect->vm.color.bytes.b = 255;
-    effect->acceleration.x = 0.0f;
-    effect->acceleration.y = 0.0f;
-    effect->acceleration.z = -0.015f;
+    effect->accel.x = 0.0f;
+    effect->accel.y = 0.0f;
+    effect->accel.z = -0.015f;
     return 0;
 }
 
 i32 EffectManager::InitRandomDirWithSpeed(Effect *effect)
 {
-    f32 local_8;
+    f32 angle;
 
     // double intentionally used here, strangely
     if (effect->custom.x > -990.0)
     {
-        local_8 = utils::AddNormalizeAngle(effect->custom.x, 0.0f);
+        angle = utils::AddNormalizeAngle(effect->custom.x, 0.0f);
     }
     else
     {
-        local_8 = g_Rng.GetRandomFloatInRange(ZUN_2PI) - ZUN_PI;
+        angle = g_Rng.GetRandomFloatInRange(ZUN_2PI) - ZUN_PI;
     }
-    effect->emitterPosition = effect->pos1;
-    effect->emitterPosition.z = 0.0f;
-    effect->direction.x = cosf(local_8);
-    effect->direction.y = sinf(local_8);
+    effect->emitterPos = effect->pos;
+    effect->emitterPos.z = 0.0f;
+    effect->direction.x = cosf(angle);
+    effect->direction.y = sinf(angle);
     effect->direction.z = 0.0f;
     effect->direction *= g_Rng.GetRandomFloatInRange(1.5f) + 1.0f;
     return 0;
@@ -427,18 +450,18 @@ i32 EffectManager::UpdateBurstEaseOut30Frames(Effect *effect)
 
     fVar1 = effect->timer.AsFloat() / 90.0f;
     fVar1 = 1.0f - (1.0f - fVar1) * (1.0f - fVar1);
-    effect->pos1 = fVar1 * effect->direction * 128.0f + effect->emitterPosition;
-    effect->pos1.z = 0.0f;
+    effect->pos = fVar1 * effect->direction * 128.0f + effect->emitterPos;
+    effect->pos.z = 0.0f;
     return 1;
 }
 
 i32 EffectManager::UpdateAttachToCamera(Effect *effect)
 {
-    effect->is2D = 1;
-    effect->basePosition = g_Stage.cam.lookAt + g_Stage.cam.pos;
-    effect->pos1 = effect->basePosition;
-    effect->pos1.z = 0.0f;
-    effect->is2D = 3;
+    effect->drawType = 1;
+    effect->basePos = g_Stage.cam.lookAt + g_Stage.cam.pos;
+    effect->pos = effect->basePos;
+    effect->pos.z = 0.0f;
+    effect->drawType = 3;
     return 1;
 }
 
@@ -448,16 +471,16 @@ i32 EffectManager::UpdateNoOp(Effect *effect)
     return 1;
 }
 
-Effect *EffectManager::SpawnParticles(i32 effectId, ZunVec3 *pos, i32 numParticles, u32 color)
+Effect *EffectManager::SpawnEffect(i32 effectId, ZunVec3 *pos, i32 numParticles, u32 color)
 {
     i32 i;
     Effect *effect;
 
     effect = &this->effects[this->nextIndex];
-    for (i = 0; i < 400; i++)
+    for (i = 0; i < MAX_NORMAL_EFFECTS; i++)
     {
         this->nextIndex++;
-        if (this->nextIndex >= 400)
+        if (this->nextIndex >= MAX_NORMAL_EFFECTS)
         {
             this->nextIndex = 0;
         }
@@ -474,10 +497,10 @@ Effect *EffectManager::SpawnParticles(i32 effectId, ZunVec3 *pos, i32 numParticl
             continue;
         }
 
-        effect->is2D = 0;
+        effect->drawType = 0;
         effect->inUseFlag = 1;
         effect->effectId = (u8)effectId;
-        effect->pos1 = *pos;
+        effect->pos = *pos;
         g_AnmManager->SetAnmIdxAndExecuteScript(&effect->vm, g_EffectMapping[effectId].anmId);
         effect->vm.zWriteDisable = 1;
         effect->vm.color.color = color;
@@ -491,7 +514,7 @@ Effect *EffectManager::SpawnParticles(i32 effectId, ZunVec3 *pos, i32 numParticl
         {
             effect->inUseFlag = 0;
         }
-        effect->prevPos = effect->pos1;
+        effect->prevPos = effect->pos;
         effect->vm.UpdatePrev();
         numParticles--;
         if (numParticles == 0)
@@ -508,7 +531,7 @@ Effect *EffectManager::SpawnParticles(i32 effectId, ZunVec3 *pos, i32 numParticl
         }
     }
 
-    return i >= 400 ? &this->effects[408] : effect;
+    return i >= MAX_NORMAL_EFFECTS ? &this->effects[MAX_EFFECTS] : effect;
 }
 
 Effect *EffectManager::SpawnMovingParticles(i32 effectId, ZunVec3 *pos, ZunVec3 *velocity,
@@ -519,10 +542,10 @@ Effect *EffectManager::SpawnMovingParticles(i32 effectId, ZunVec3 *pos, ZunVec3 
 
     effect = &this->effects[this->nextIndex];
 
-    for (i = 0; i < 400; i++)
+    for (i = 0; i < MAX_NORMAL_EFFECTS; i++)
     {
         this->nextIndex++;
-        if (this->nextIndex >= 400)
+        if (this->nextIndex >= MAX_NORMAL_EFFECTS)
         {
             this->nextIndex = 0;
         }
@@ -539,10 +562,10 @@ Effect *EffectManager::SpawnMovingParticles(i32 effectId, ZunVec3 *pos, ZunVec3 
             continue;
         }
 
-        effect->is2D = 0;
+        effect->drawType = 0;
         effect->inUseFlag = 1;
         effect->effectId = effectId;
-        effect->pos1 = *pos;
+        effect->pos = *pos;
         g_AnmManager->SetAnmIdxAndExecuteScript(&effect->vm, g_EffectMapping[effectId].anmId);
         effect->vm.color.color = color;
         effect->callback = g_EffectMapping[effectId].updateCallback;
@@ -555,7 +578,7 @@ Effect *EffectManager::SpawnMovingParticles(i32 effectId, ZunVec3 *pos, ZunVec3 
         {
             effect->inUseFlag = 0;
         }
-        effect->prevPos = effect->pos1;
+        effect->prevPos = effect->pos;
         effect->vm.UpdatePrev();
         numParticles--;
         if (numParticles == 0)
@@ -572,20 +595,21 @@ Effect *EffectManager::SpawnMovingParticles(i32 effectId, ZunVec3 *pos, ZunVec3 
         }
     }
 
-    return i >= 400 ? &this->effects[408] : effect;
+    return i >= MAX_NORMAL_EFFECTS ? &this->effects[MAX_EFFECTS] : effect;
 }
 
-Effect *EffectManager::SpawnEffect(i32 effectId, ZunVec3 *pos, i32 param_3, i32 param_4, u32 color)
+Effect *EffectManager::SpawnSpecialEffect(i32 effectId, ZunVec3 *pos, i32 effectIdx, i32 param_4,
+                                          u32 color)
 {
     (void)param_4;
 
     Effect *effect;
 
-    effect = &this->effects[param_3 + 400];
-    effect->is2D = 0;
+    effect = &this->effects[effectIdx + MAX_NORMAL_EFFECTS];
+    effect->drawType = 0;
     effect->inUseFlag = 1;
     effect->effectId = effectId;
-    effect->pos1 = *pos;
+    effect->pos = *pos;
     g_AnmManager->SetAnmIdxAndExecuteScript(&effect->vm, g_EffectMapping[effectId].anmId);
     effect->vm.zWriteDisable = 1;
     effect->vm.color.color = color;
@@ -601,7 +625,7 @@ Effect *EffectManager::SpawnEffect(i32 effectId, ZunVec3 *pos, i32 param_3, i32 
             effect->inUseFlag = 0;
         }
     }
-    effect->prevPos = effect->pos1;
+    effect->prevPos = effect->pos;
     effect->vm.UpdatePrev();
     return effect;
 }
@@ -612,7 +636,7 @@ u32 EffectManager::OnUpdate(EffectManager *arg)
     Effect *effect;
 
     effect = arg->effects;
-    arg->activeEffectsCount = 0;
+    arg->activeEffects = 0;
     arg->layerPtrs[0] = &arg->layer0;
     arg->layerPtrs[1] = &arg->layer1;
     arg->layerPtrs[2] = &arg->layer2;
@@ -621,7 +645,7 @@ u32 EffectManager::OnUpdate(EffectManager *arg)
     arg->layer1.next = NULL;
     arg->layer2.next = NULL;
     arg->layer3.next = NULL;
-    for (i = 0; i < 408; i++, effect++)
+    for (i = 0; i < MAX_EFFECTS; i++, effect++)
     {
         if (!effect->inUseFlag)
         {
@@ -631,9 +655,9 @@ u32 EffectManager::OnUpdate(EffectManager *arg)
         bool firstUpdate = effect->timer.GetCurrent() == 0;
 
         effect->vm.UpdatePrev();
-        effect->prevPos = effect->pos1;
+        effect->prevPos = effect->pos;
 
-        arg->activeEffectsCount++;
+        arg->activeEffects++;
         if (effect->callback && effect->callback(effect) != 1)
         {
             effect->inUseFlag = 0;
@@ -648,18 +672,18 @@ u32 EffectManager::OnUpdate(EffectManager *arg)
 
         if (firstUpdate)
         {
-            effect->prevPos = effect->pos1;
+            effect->prevPos = effect->pos;
             effect->vm.UpdatePrev();
         }
 
         effect->timer++;
         effect->next = NULL;
-        if (effect->is2D == 1 || effect->is2D == 3)
+        if (effect->drawType == 1 || effect->drawType == 3)
         {
             arg->layerPtrs[1]->next = effect;
             arg->layerPtrs[1] = effect;
         }
-        else if (!effect->is2D)
+        else if (!effect->drawType)
         {
             if (effect->vm.blendMode != 0)
             {
@@ -709,7 +733,7 @@ u32 EffectManager::OnDraw(EffectManager *arg)
 
         for (i32 i = 0; i < count; i++)
         {
-            active[i]->vm.pos = active[i]->prevPos.Lerp(active[i]->pos1, g_RenderAlpha);
+            active[i]->vm.pos = active[i]->prevPos.Lerp(active[i]->pos, g_RenderAlpha);
             if (isBillboard)
             {
                 g_AnmManager->DrawBillboard(&active[i]->vm);
@@ -729,7 +753,7 @@ u32 EffectManager::OnDraw(EffectManager *arg)
     return CHAIN_CALLBACK_RESULT_CONTINUE;
 }
 
-i32 EffectManager::UpdateSpecialEffect()
+i32 EffectManager::DrawLayer1Effects()
 {
     i32 temp;
     f32 r;
@@ -779,8 +803,8 @@ i32 EffectManager::UpdateSpecialEffect()
             effect->vm.prevColor = effect->vm.color;
         }
 
-        effect->vm.pos = effect->prevPos.Lerp(effect->pos1, g_RenderAlpha);
-        if (effect->is2D == 1)
+        effect->vm.pos = effect->prevPos.Lerp(effect->pos, g_RenderAlpha);
+        if (effect->drawType == 1)
         {
             g_AnmManager->DrawBillboard(&effect->vm);
         }
@@ -809,8 +833,8 @@ ZunResult EffectManager::AddedCallback(EffectManager *arg)
     g_Stage.spellcardVmsIdx = 0;
     switch (g_GameManager.currentStage)
     {
-    case 0:
-    case 1:
+    case DUMMYSTAGE:
+    case STAGE1:
         g_Stage.numSpellcardVms = 1;
         if (g_AnmManager->LoadAnms(ANM_FILE_EFFECTS, "data/eff01.anm", ANM_OFFSET_EFFECTS) !=
             ZUN_SUCCESS)
@@ -818,7 +842,7 @@ ZunResult EffectManager::AddedCallback(EffectManager *arg)
             return ZUN_ERROR;
         }
         break;
-    case 2:
+    case STAGE2:
         g_Stage.numSpellcardVms = 1;
         if (g_AnmManager->LoadAnms(ANM_FILE_EFFECTS, "data/eff02.anm", ANM_OFFSET_EFFECTS) !=
             ZUN_SUCCESS)
@@ -826,7 +850,7 @@ ZunResult EffectManager::AddedCallback(EffectManager *arg)
             return ZUN_ERROR;
         }
         break;
-    case 3:
+    case STAGE3:
         g_Stage.numSpellcardVms = 1;
         if (g_AnmManager->LoadAnms(ANM_FILE_EFFECTS, "data/eff03.anm", ANM_OFFSET_EFFECTS) !=
             ZUN_SUCCESS)
@@ -834,7 +858,7 @@ ZunResult EffectManager::AddedCallback(EffectManager *arg)
             return ZUN_ERROR;
         }
         break;
-    case 4:
+    case STAGE4:
         g_Stage.numSpellcardVms = 2;
         if (g_AnmManager->LoadAnms(ANM_FILE_EFFECTS, "data/eff04.anm", ANM_OFFSET_EFFECTS) !=
             ZUN_SUCCESS)
@@ -847,7 +871,7 @@ ZunResult EffectManager::AddedCallback(EffectManager *arg)
             return ZUN_ERROR;
         }
         break;
-    case 5:
+    case STAGE5:
         g_Stage.numSpellcardVms = 2;
         if (g_AnmManager->LoadAnms(ANM_FILE_EFFECTS, "data/eff05.anm", ANM_OFFSET_EFFECTS) !=
             ZUN_SUCCESS)
@@ -855,7 +879,7 @@ ZunResult EffectManager::AddedCallback(EffectManager *arg)
             return ZUN_ERROR;
         }
         break;
-    case 6:
+    case STAGE6:
         g_Stage.numSpellcardVms = 2;
         if (g_AnmManager->LoadAnms(ANM_FILE_EFFECTS, "data/eff05.anm", ANM_OFFSET_EFFECTS) !=
             ZUN_SUCCESS)
@@ -868,7 +892,7 @@ ZunResult EffectManager::AddedCallback(EffectManager *arg)
             return ZUN_ERROR;
         }
         break;
-    case 7:
+    case EXTRASTAGE:
         g_Stage.numSpellcardVms = 1;
         if (g_AnmManager->LoadAnms(ANM_FILE_EFFECTS, "data/eff02.anm", ANM_OFFSET_EFFECTS) !=
             ZUN_SUCCESS)
@@ -881,7 +905,7 @@ ZunResult EffectManager::AddedCallback(EffectManager *arg)
             return ZUN_ERROR;
         }
         break;
-    case 8:
+    case PHANTASMSTAGE:
         g_Stage.numSpellcardVms = 2;
         if (g_AnmManager->LoadAnms(ANM_FILE_EFFECTS, "data/eff07.anm", ANM_OFFSET_EFFECTS) !=
             ZUN_SUCCESS)
@@ -901,10 +925,10 @@ ZunResult EffectManager::DeletedCallback(EffectManager *arg)
 {
     (void)arg;
 
-    g_AnmManager->ReleaseAnm(17);
-    g_AnmManager->ReleaseAnm(18);
-    g_AnmManager->ReleaseAnm(19);
-    g_AnmManager->ReleaseAnm(20);
+    g_AnmManager->ReleaseAnm(ANM_FILE_EFFECTS);
+    g_AnmManager->ReleaseAnm(ANM_FILE_EFFECTS2);
+    g_AnmManager->ReleaseAnm(ANM_FILE_EFFECTS3_0);
+    g_AnmManager->ReleaseAnm(ANM_FILE_EFFECTS3_1);
     return ZUN_SUCCESS;
 }
 
@@ -918,7 +942,7 @@ ZunResult EffectManager::RegisterChain()
     g_EffectManagerCalcChain.addedCallback = (ChainLifecycleCallback)AddedCallback;
     g_EffectManagerCalcChain.deletedCallback = (ChainLifecycleCallback)DeletedCallback;
     g_EffectManagerCalcChain.arg = mgr;
-    if (g_Chain.AddToCalcChain(&g_EffectManagerCalcChain, 11))
+    if (g_Chain.AddToCalcChain(&g_EffectManagerCalcChain, CHAIN_PRIO_CALC_EFFECTMANAGER))
     {
         return ZUN_ERROR;
     }
@@ -927,7 +951,7 @@ ZunResult EffectManager::RegisterChain()
     g_EffectManagerDrawChain.addedCallback = NULL;
     g_EffectManagerDrawChain.deletedCallback = NULL;
     g_EffectManagerDrawChain.arg = mgr;
-    g_Chain.AddToDrawChain(&g_EffectManagerDrawChain, 9);
+    g_Chain.AddToDrawChain(&g_EffectManagerDrawChain, CHAIN_PRIO_DRAW_EFFECTMANAGER);
     return ZUN_SUCCESS;
 }
 

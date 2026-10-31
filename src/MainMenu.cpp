@@ -88,67 +88,48 @@ const char *g_MainMenuStrings[8] = {
     "いろいろと終了します",
 };
 
-void InitializeTimingVars(Supervisor *arg)
-{
-    arg->timingErrorCount = 0;
-    arg->maxTimingError = 0;
-    arg->checkTiming = 0;
-    arg->timingSpikeAccumulator = 0;
-    arg->timingBadCount = 0;
-}
-
-void MainMenu::SetGameState(GameState gameState)
-{
-    this->prevGameState = this->gameState;
-    this->gameState = gameState;
-    this->inputDelayTimer = 0;
-    this->stateTimer = 0;
-    this->menuSubState = 0;
-    this->idleFrames = 0;
-}
-
 u32 MainMenu::OnUpdate(MainMenu *arg)
 {
     u32 result;
 
     arg->UpdatePrev();
 
-    switch (arg->gameState)
+    switch (arg->menuState)
     {
-    case STATE_PRE_INPUT:
+    case MENU_STATE_PRE_INPUT:
         result = arg->OnUpdatePreInput();
         break;
-    case STATE_SELECT_REPLAY:
+    case MENU_STATE_SELECT_REPLAY:
         result = arg->OnUpdateSelectReplay();
         break;
-    case STATE_OPTIONS:
+    case MENU_STATE_OPTIONS:
         result = arg->OnUpdateOptionsMenu();
         break;
-    case STATE_KEY_CONFIG:
+    case MENU_STATE_KEY_CONFIG:
         result = arg->OnUpdateKeyConfig();
         break;
-    case STATE_NORMAL_SELECT_DIFFICULTY:
-    case STATE_PRACTICE_SELECT_DIFFICULTY:
-    case STATE_EXTRA_SELECT_DIFFICULTY:
+    case MENU_STATE_NORMAL_SELECT_DIFFICULTY:
+    case MENU_STATE_PRACTICE_SELECT_DIFFICULTY:
+    case MENU_STATE_EXTRA_SELECT_DIFFICULTY:
         result = arg->OnUpdateSelectDifficulty();
         break;
-    case STATE_NORMAL_SELECT_CHARACTER:
-    case STATE_PRACTICE_SELECT_CHARACTER:
-    case STATE_EXTRA_SELECT_CHARACTER:
+    case MENU_STATE_NORMAL_SELECT_CHARACTER:
+    case MENU_STATE_PRACTICE_SELECT_CHARACTER:
+    case MENU_STATE_EXTRA_SELECT_CHARACTER:
         result = arg->OnUpdateSelectCharacter();
         break;
-    case STATE_NORMAL_SELECT_SHOTTYPE:
-    case STATE_PRACTICE_SELECT_SHOTTYPE:
-    case STATE_EXTRA_SELECT_SHOTTYPE:
+    case MENU_STATE_NORMAL_SELECT_SHOTTYPE:
+    case MENU_STATE_PRACTICE_SELECT_SHOTTYPE:
+    case MENU_STATE_EXTRA_SELECT_SHOTTYPE:
         result = arg->OnUpdateSelectShotType();
         break;
-    case STATE_SELECT_PRACTICE_STAGE:
+    case MENU_STATE_SELECT_PRACTICE_STAGE:
         result = arg->OnUpdateSelectPracticeStage();
     }
-    g_AnmManager->ExecuteScripts(arg->vmHead, arg->vmCount);
-    if (arg->cursorVm)
+    g_AnmManager->ExecuteScripts(arg->vms, arg->vmCount);
+    if (arg->curDescriptionVm)
     {
-        g_AnmManager->ExecuteScript(arg->cursorVm);
+        g_AnmManager->ExecuteScript(arg->curDescriptionVm);
     }
 
     return result;
@@ -160,14 +141,17 @@ u32 MainMenu::OnUpdatePreInput()
 
     switch (this->menuSubState)
     {
-    case 0:
-        if (this->prevGameState == STATE_PRE_INPUT && g_Supervisor.prevState != 5)
+    case MENU_SUBSTATE_PREINPUT_INIT:
+        if (this->prevMenuState == MENU_STATE_PRE_INPUT &&
+            g_Supervisor.prevState != SUPERVISOR_STATE_RESULTSCREEN)
         {
             g_Supervisor.PlayLoadedAudio(8);
         }
-        if ((this->prevGameState == STATE_PRE_INPUT || this->prevGameState == 4 ||
-             this->prevGameState == STATE_SELECT_REPLAY ||
-             (this->prevGameState == 8 || this->prevGameState == STATE_EXTRA_SELECT_DIFFICULTY)) &&
+        if ((this->prevMenuState == MENU_STATE_PRE_INPUT ||
+             this->prevMenuState == MENU_STATE_NORMAL_SELECT_DIFFICULTY ||
+             this->prevMenuState == MENU_STATE_SELECT_REPLAY ||
+             (this->prevMenuState == MENU_STATE_PRACTICE_SELECT_DIFFICULTY ||
+              this->prevMenuState == MENU_STATE_EXTRA_SELECT_DIFFICULTY)) &&
             g_AnmManager->LoadSurface(0, "data/title/title00.jpg") != ZUN_SUCCESS)
         {
             return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
@@ -175,74 +159,73 @@ u32 MainMenu::OnUpdatePreInput()
         if (this->vmCount == 0)
         {
             this->vmCount = 164;
-            this->vmHead = new AnmVm[this->vmCount];
-            g_AnmManager->ExecuteVmsAnms(this->vmHead, 2304, this->vmCount);
+            this->vms = new AnmVm[this->vmCount];
+            g_AnmManager->ExecuteVmsAnms(this->vms, ANM_OFFSET_TITLE, this->vmCount);
         }
-        g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 2);
-        for (i = 0; i < 8; i++)
+        g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 2);
+        for (i = 0; i < ARRAY_SIZE_SIGNED(g_MainMenuStrings); i++)
         {
-            g_AnmManager->SetActiveSprite(&this->vmHead[i + 1],
-                                          this->vmHead[i + 1].baseSpriteIdx + 1);
+            g_AnmManager->SetActiveSprite(&this->vms[i + 1], this->vms[i + 1].baseSpriteIdx + 1);
         }
-        g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 1],
-                                      (i32)this->vmHead[this->cursor + 1].baseSpriteIdx);
-        this->menuSubState = 0;
+        g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 1],
+                                      (i32)this->vms[this->cursor + 1].baseSpriteIdx);
+        this->menuSubState = MENU_SUBSTATE_PREINPUT_INIT;
         this->inputDelayTimer = 0;
         this->selected = -1;
-        this->menuSubState = 1;
+        this->menuSubState = MENU_SUBSTATE_PREINPUT_INPUT;
         this->demoFramesCount = 0;
         if (g_GameManager.replay)
         {
-            this->prevGameState = this->gameState;
-            this->gameState = STATE_SELECT_REPLAY;
+            this->prevMenuState = this->menuState;
+            this->menuState = MENU_STATE_SELECT_REPLAY;
             this->inputDelayTimer = 0;
             this->stateTimer = 0;
-            this->menuSubState = 0;
+            this->menuSubState = MENU_SUBSTATE_PREINPUT_INIT;
             this->idleFrames = 0;
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 13);
-            this->cursorVm->SetInterrupt(2);
-            g_GameManager.SetReplay(0);
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 13);
+            this->curDescriptionVm->SetInterrupt(2);
+            g_GameManager.SetIsReplay(FALSE);
             return CHAIN_CALLBACK_RESULT_CONTINUE;
         }
         if (this->isPracticeMode)
         {
-            this->prevGameState = this->gameState;
-            this->gameState = STATE_PRACTICE_SELECT_DIFFICULTY;
+            this->prevMenuState = this->menuState;
+            this->menuState = MENU_STATE_PRACTICE_SELECT_DIFFICULTY;
             this->inputDelayTimer = 0;
             this->stateTimer = 0;
-            this->menuSubState = 0;
+            this->menuSubState = MENU_SUBSTATE_PREINPUT_INIT;
             this->idleFrames = 0;
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 5);
-            this->cursorVm->SetInterrupt(2);
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 5);
+            this->curDescriptionVm->SetInterrupt(2);
             return CHAIN_CALLBACK_RESULT_CONTINUE;
         }
-        for (i = 0; (u32)i < 8; i++)
+        for (i = 0; i < ARRAY_SIZE(g_MainMenuStrings); i++)
         {
-            g_AnmManager->DrawStringFormat2(&this->vms[i], 0xfff0e0, 0x300000,
+            g_AnmManager->DrawStringFormat2(&this->descriptionVms[i], 0xfff0e0, 0x300000,
                                             g_MainMenuStrings[i]);
         }
-    case 1: {
-        i = MoveCursorVertical(8);
+    case MENU_SUBSTATE_PREINPUT_INPUT: {
+        i = MoveCursorVertical(ARRAY_SIZE_SIGNED(g_MainMenuStrings));
         if (i != 0)
         {
-            while (g_GameManager.HasReachedMaxClearsAllShotTypes() == 0 && this->cursor == 1)
+            while (g_GameManager.HasReachedMaxClearsAnyShotType() == 0 && this->cursor == 1)
             {
                 this->cursor += i;
             }
-            for (i = 0; i < 8; i++)
+            for (i = 0; i < ARRAY_SIZE_SIGNED(g_MainMenuStrings); i++)
             {
-                g_AnmManager->SetActiveSprite(&this->vmHead[i + 1],
-                                              this->vmHead[i + 1].baseSpriteIdx + 1);
+                g_AnmManager->SetActiveSprite(&this->vms[i + 1],
+                                              this->vms[i + 1].baseSpriteIdx + 1);
             }
-            g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 1],
-                                          (i32)this->vmHead[this->cursor + 1].baseSpriteIdx);
+            g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 1],
+                                          (i32)this->vms[this->cursor + 1].baseSpriteIdx);
         }
         this->demoFramesCount++;
         if (g_CurFrameRawInput != 0)
         {
             this->demoFramesCount = 0;
         }
-        if (900 < this->demoFramesCount)
+        if (this->demoFramesCount > 900)
         {
             g_GameManager.demoIdx++;
             g_GameManager.demoIdx %= 3;
@@ -259,8 +242,8 @@ u32 MainMenu::OnUpdatePreInput()
             }
             else
             {
-                g_GameManager.SetReplay(1);
-                g_GameManager.flags |= 2;
+                g_GameManager.SetIsReplay(TRUE);
+                g_GameManager.demo = 1;
                 g_GameManager.demoFrames = 0;
                 g_GameManager.difficulty = this->currentReplay->data.difficulty;
                 g_GameManager.character = this->currentReplay->data.shotType / 2;
@@ -275,15 +258,15 @@ u32 MainMenu::OnUpdatePreInput()
                 g_GameManager.currentStage = i;
                 ReplayManager::FreeReplay(this->currentReplay);
                 this->currentReplay = NULL;
-                g_Supervisor.curState = 2;
+                g_Supervisor.curState = SUPERVISOR_STATE_GAMEMANAGER;
                 g_GameManager.replayStage = 0;
                 return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
             }
         }
         if (this->selected != this->cursor)
         {
-            this->cursorVm = &this->vms[this->cursor];
-            this->cursorVm->SetInterrupt(1);
+            this->curDescriptionVm = &this->descriptionVms[this->cursor];
+            this->curDescriptionVm->SetInterrupt(1);
         }
         this->selected = this->cursor;
         if (this->stateTimer < 10)
@@ -296,74 +279,74 @@ u32 MainMenu::OnUpdatePreInput()
             g_SoundPlayer.ProcessQueues();
             switch (this->cursor)
             {
-            case 0:
+            case MENU_CURSOR_PREINPUT_START:
                 g_GameManager.practice = 0;
                 this->cursor = g_Supervisor.cfg.defaultDifficulty;
                 if (this->cursor >= 4)
                 {
                     this->cursor = 2;
                 }
-                this->prevGameState = this->gameState;
-                this->gameState = STATE_NORMAL_SELECT_DIFFICULTY;
+                this->prevMenuState = this->menuState;
+                this->menuState = MENU_STATE_NORMAL_SELECT_DIFFICULTY;
                 this->inputDelayTimer = 0;
                 this->stateTimer = 0;
-                this->menuSubState = 0;
+                this->menuSubState = MENU_SUBSTATE_PREINPUT_INIT;
                 this->idleFrames = 0;
-                g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 5);
-                this->cursorVm->SetInterrupt(2);
+                g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 5);
+                this->curDescriptionVm->SetInterrupt(2);
                 return CHAIN_CALLBACK_RESULT_CONTINUE;
-            case 2:
+            case MENU_CURSOR_PREINPUT_PRACTICE_START:
                 g_GameManager.practice = 1;
                 this->cursor = g_Supervisor.cfg.defaultDifficulty;
                 if (this->cursor >= 4)
                 {
                     this->cursor = 2;
                 }
-                this->prevGameState = this->gameState;
-                this->gameState = STATE_PRACTICE_SELECT_DIFFICULTY;
+                this->prevMenuState = this->menuState;
+                this->menuState = MENU_STATE_PRACTICE_SELECT_DIFFICULTY;
                 this->inputDelayTimer = 0;
                 this->stateTimer = 0;
-                this->menuSubState = 0;
+                this->menuSubState = MENU_SUBSTATE_PREINPUT_INIT;
                 this->idleFrames = 0;
-                g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 5);
-                this->cursorVm->SetInterrupt(2);
+                g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 5);
+                this->curDescriptionVm->SetInterrupt(2);
                 return CHAIN_CALLBACK_RESULT_CONTINUE;
-            case 1:
-                if (g_GameManager.HasReachedMaxClearsAllShotTypes())
+            case MENU_CURSOR_PREINPUT_EXTRA_START:
+                if (g_GameManager.HasReachedMaxClearsAnyShotType())
                 {
                     g_GameManager.practice = 0;
                     this->cursor = g_Supervisor.cfg.defaultDifficulty == 5;
-                    this->prevGameState = this->gameState;
-                    this->gameState = STATE_EXTRA_SELECT_DIFFICULTY;
+                    this->prevMenuState = this->menuState;
+                    this->menuState = MENU_STATE_EXTRA_SELECT_DIFFICULTY;
                     this->inputDelayTimer = 0;
                     this->stateTimer = 0;
-                    this->menuSubState = 0;
+                    this->menuSubState = MENU_SUBSTATE_PREINPUT_INIT;
                     this->idleFrames = 0;
-                    g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 5);
-                    this->cursorVm->SetInterrupt(2);
+                    g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 5);
+                    this->curDescriptionVm->SetInterrupt(2);
                     return CHAIN_CALLBACK_RESULT_CONTINUE;
                 }
-            case 3:
+            case MENU_CURSOR_PREINPUT_REPLAY:
                 g_GameManager.practice = 0;
-                this->prevGameState = this->gameState;
-                this->gameState = STATE_SELECT_REPLAY;
+                this->prevMenuState = this->menuState;
+                this->menuState = MENU_STATE_SELECT_REPLAY;
                 this->inputDelayTimer = 0;
                 this->stateTimer = 0;
-                this->menuSubState = 0;
+                this->menuSubState = MENU_SUBSTATE_PREINPUT_INIT;
                 this->idleFrames = 0;
-                g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 13);
-                this->cursorVm->SetInterrupt(2);
+                g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 13);
+                this->curDescriptionVm->SetInterrupt(2);
                 return CHAIN_CALLBACK_RESULT_CONTINUE;
-            case 5:
-                g_Supervisor.curState = 8;
-                this->cursorVm->SetInterrupt(2);
+            case MENU_CURSOR_PREINPUT_MUSICROOM:
+                g_Supervisor.curState = SUPERVISOR_STATE_MUSICROOM;
+                this->curDescriptionVm->SetInterrupt(2);
                 return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
-            case 4:
-                g_Supervisor.curState = 5;
-                this->cursorVm->SetInterrupt(2);
+            case MENU_CURSOR_PREINPUT_RESULTS:
+                g_Supervisor.curState = SUPERVISOR_STATE_RESULTSCREEN;
+                this->curDescriptionVm->SetInterrupt(2);
                 return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
-            case 6:
-                this->menuSubState = 0;
+            case MENU_CURSOR_PREINPUT_OPTIONS:
+                this->menuSubState = MENU_SUBSTATE_PREINPUT_INIT;
                 this->cursor = 0;
                 this->stateTimer = 0;
                 this->inputDelayTimer = 0;
@@ -372,10 +355,10 @@ u32 MainMenu::OnUpdatePreInput()
                 OnUpdateOptionsMenu();
                 this->cursor = 0;
                 break;
-            case 7:
-                this->menuSubState = 2;
+            case MENU_CURSOR_PREINPUT_EXIT:
+                this->menuSubState = MENU_SUBSTATE_PREINPUT_EXIT;
                 this->inputDelayTimer = 0;
-                g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 1);
+                g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 1);
                 if (g_Supervisor.cfg.musicMode == 2)
                 {
                     g_Supervisor.midiOutput->PlayLoaded(30);
@@ -385,36 +368,36 @@ u32 MainMenu::OnUpdatePreInput()
         }
         if (WAS_PRESSED_RAW(TH_BUTTON_RETURNMENU))
         {
-            g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 1],
-                                          this->vmHead[this->cursor + 1].baseSpriteIdx + 1);
+            g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 1],
+                                          this->vms[this->cursor + 1].baseSpriteIdx + 1);
             this->cursor = 7;
-            g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 1],
-                                          (i32)this->vmHead[this->cursor + 1].baseSpriteIdx);
+            g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 1],
+                                          (i32)this->vms[this->cursor + 1].baseSpriteIdx);
             g_SoundPlayer.PlaySoundByIdx(SOUND_BACK, 0);
             g_SoundPlayer.ProcessQueues();
         }
         break;
     }
-    case 2:
+    case MENU_SUBSTATE_PREINPUT_EXIT:
         if (this->inputDelayTimer >= 60)
         {
-            delete[] this->vmHead;
-            this->vmHead = NULL;
-            this->vmHead = NULL;
+            delete[] this->vms;
+            this->vms = NULL;
+            this->vms = NULL;
             this->vmCount = 0;
             this->stateTimer = 0;
-            g_Supervisor.curState = -1;
+            g_Supervisor.curState = SUPERVISOR_STATE_EXIT;
             return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
         }
         break;
-    case 3:
+    case MENU_SUBSTATE_PREINPUT_OPTIONS:
         if (this->inputDelayTimer >= 30)
         {
-            this->prevGameState = this->gameState;
-            this->gameState = STATE_OPTIONS;
+            this->prevMenuState = this->menuState;
+            this->menuState = MENU_STATE_OPTIONS;
             this->inputDelayTimer = 0;
             this->stateTimer = 0;
-            this->menuSubState = 0;
+            this->menuSubState = MENU_SUBSTATE_PREINPUT_INIT;
             this->idleFrames = 0;
             this->cursor = 0;
             this->cfg = g_Supervisor.cfg;
@@ -436,89 +419,89 @@ u32 MainMenu::OnUpdateOptionsMenu()
     {
     default:
         goto LAB_00456e08;
-    case 0:
+    case MENU_SUBSTATE_SELECT_INIT:
         if (this->stateTimer == 0)
         {
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 3);
-            for (i = 0; i < 9; i++)
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 3);
+            for (i = 0; i < ARRAY_SIZE_SIGNED(g_OptionsStrings); i++)
             {
-                g_AnmManager->SetActiveSprite(&this->vmHead[i + 9],
-                                              this->vmHead[i + 9].baseSpriteIdx + 1);
+                g_AnmManager->SetActiveSprite(&this->vms[i + 9],
+                                              this->vms[i + 9].baseSpriteIdx + 1);
             }
-            g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 9],
-                                          (i32)this->vmHead[this->cursor + 9].baseSpriteIdx);
-            this->menuSubState = 0;
+            g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 9],
+                                          (i32)this->vms[this->cursor + 9].baseSpriteIdx);
+            this->menuSubState = MENU_SUBSTATE_SELECT_INIT;
             this->inputDelayTimer = 0;
             this->selected = -1;
         }
-        this->menuSubState = 1;
-        for (i = 0; (u32)i < 9; i++)
+        this->menuSubState = MENU_SUBSTATE_SELECT_INPUT;
+        for (i = 0; i < ARRAY_SIZE(g_OptionsStrings); i++)
         {
-            g_AnmManager->DrawStringFormat2(&this->vms[i], 0xfff0e0, 0x300000, g_OptionsStrings[i]);
+            g_AnmManager->DrawStringFormat2(&this->descriptionVms[i], 0xfff0e0, 0x300000,
+                                            g_OptionsStrings[i]);
         }
-    case 1:
+    case MENU_SUBSTATE_SELECT_INPUT:
         break;
     }
 
-    if (MoveCursorVertical(9))
+    if (MoveCursorVertical(ARRAY_SIZE_SIGNED(g_OptionsStrings)))
     {
-        for (i = 0; i < 9; i++)
+        for (i = 0; i < ARRAY_SIZE_SIGNED(g_OptionsStrings); i++)
         {
-            g_AnmManager->SetActiveSprite(&this->vmHead[i + 9],
-                                          this->vmHead[i + 9].baseSpriteIdx + 1);
+            g_AnmManager->SetActiveSprite(&this->vms[i + 9], this->vms[i + 9].baseSpriteIdx + 1);
         }
-        g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 9],
-                                      (i32)this->vmHead[this->cursor + 9].baseSpriteIdx);
+        g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 9],
+                                      (i32)this->vms[this->cursor + 9].baseSpriteIdx);
     }
 
     if (this->selected != this->cursor)
     {
-        this->cursorVm = &this->vms[this->cursor];
-        this->cursorVm->SetInterrupt(1);
+        this->curDescriptionVm = &this->descriptionVms[this->cursor];
+        this->curDescriptionVm->SetInterrupt(1);
     }
     this->selected = this->cursor;
 
     for (i = 18; i <= 22; i++)
     {
-        g_AnmManager->SetActiveSprite(&this->vmHead[i], this->vmHead[i].baseSpriteIdx + 1);
+        g_AnmManager->SetActiveSprite(&this->vms[i], this->vms[i].baseSpriteIdx + 1);
     }
     i = g_Supervisor.cfg.lifeCount + 18;
-    g_AnmManager->SetActiveSprite(&this->vmHead[i], (i32)this->vmHead[i].baseSpriteIdx);
+    g_AnmManager->SetActiveSprite(&this->vms[i], (i32)this->vms[i].baseSpriteIdx);
 
     for (i = 23; i <= 24; i++)
     {
-        g_AnmManager->SetActiveSprite(&this->vmHead[i], this->vmHead[i].baseSpriteIdx + 1);
+        g_AnmManager->SetActiveSprite(&this->vms[i], this->vms[i].baseSpriteIdx + 1);
     }
     i = g_Supervisor.cfg.colorMode16bit + 23;
-    g_AnmManager->SetActiveSprite(&this->vmHead[i], (i32)this->vmHead[i].baseSpriteIdx);
+    g_AnmManager->SetActiveSprite(&this->vms[i], (i32)this->vms[i].baseSpriteIdx);
 
     for (i = 25; i <= 27; i++)
     {
-        g_AnmManager->SetActiveSprite(&this->vmHead[i], this->vmHead[i].baseSpriteIdx + 1);
+        g_AnmManager->SetActiveSprite(&this->vms[i], this->vms[i].baseSpriteIdx + 1);
     }
     i = g_Supervisor.cfg.musicMode + 25;
-    g_AnmManager->SetActiveSprite(&this->vmHead[i], (i32)this->vmHead[i].baseSpriteIdx);
+    g_AnmManager->SetActiveSprite(&this->vms[i], (i32)this->vms[i].baseSpriteIdx);
 
     for (i = 28; i <= 29; i++)
     {
-        g_AnmManager->SetActiveSprite(&this->vmHead[i], this->vmHead[i].baseSpriteIdx + 1);
+        g_AnmManager->SetActiveSprite(&this->vms[i], this->vms[i].baseSpriteIdx + 1);
     }
     i = g_Supervisor.cfg.playSounds + 28;
-    g_AnmManager->SetActiveSprite(&this->vmHead[i], (i32)this->vmHead[i].baseSpriteIdx);
+    g_AnmManager->SetActiveSprite(&this->vms[i], (i32)this->vms[i].baseSpriteIdx);
 
     for (i = 30; i <= 31; i++)
     {
-        g_AnmManager->SetActiveSprite(&this->vmHead[i], this->vmHead[i].baseSpriteIdx + 1);
+        g_AnmManager->SetActiveSprite(&this->vms[i], this->vms[i].baseSpriteIdx + 1);
     }
     i = g_Supervisor.cfg.windowed + 30;
-    g_AnmManager->SetActiveSprite(&this->vmHead[i], (i32)this->vmHead[i].baseSpriteIdx);
+    g_AnmManager->SetActiveSprite(&this->vms[i], (i32)this->vms[i].baseSpriteIdx);
 
     for (i = 32; i <= 33; i++)
     {
-        g_AnmManager->SetActiveSprite(&this->vmHead[i], this->vmHead[i].baseSpriteIdx + 1);
+        g_AnmManager->SetActiveSprite(&this->vms[i], this->vms[i].baseSpriteIdx + 1);
     }
     i = g_Supervisor.cfg.slowMode + 32;
-    g_AnmManager->SetActiveSprite(&this->vmHead[i], (i32)this->vmHead[i].baseSpriteIdx);
+    g_AnmManager->SetActiveSprite(&this->vms[i], (i32)this->vms[i].baseSpriteIdx);
 
     if (this->stateTimer < 4)
     {
@@ -529,7 +512,7 @@ u32 MainMenu::OnUpdateOptionsMenu()
     {
         switch (this->cursor)
         {
-        case 0:
+        case MENU_CURSOR_OPTIONS_MENU_LIVES:
             if (g_Supervisor.cfg.lifeCount == 0)
             {
                 g_Supervisor.cfg.lifeCount = 4;
@@ -539,7 +522,7 @@ u32 MainMenu::OnUpdateOptionsMenu()
                 g_Supervisor.cfg.lifeCount--;
             }
             break;
-        case 1:
+        case MENU_CURSOR_OPTIONS_COLOR_MODE:
             if (!g_Supervisor.cfg.colorMode16bit)
             {
                 g_Supervisor.cfg.colorMode16bit = 1;
@@ -549,7 +532,7 @@ u32 MainMenu::OnUpdateOptionsMenu()
                 g_Supervisor.cfg.colorMode16bit--;
             }
             break;
-        case 2:
+        case MENU_CURSOR_OPTIONS_MUSIC_MODE:
             g_Supervisor.StopAudio();
             if (g_Supervisor.cfg.musicMode == MUSIC_MIDI)
             {
@@ -570,7 +553,7 @@ u32 MainMenu::OnUpdateOptionsMenu()
             g_Supervisor.LoadAudio(8, "bgm/th07_01.mid");
             g_Supervisor.PlayLoadedAudio(8);
             break;
-        case 3:
+        case MENU_CURSOR_OPTIONS_PLAY_SFX:
             if (!g_Supervisor.cfg.playSounds)
             {
                 g_Supervisor.cfg.playSounds = 1;
@@ -580,7 +563,7 @@ u32 MainMenu::OnUpdateOptionsMenu()
                 g_Supervisor.cfg.playSounds--;
             }
             break;
-        case 4:
+        case MENU_CURSOR_OPTIONS_WINDOW_MODE:
             if (!g_Supervisor.cfg.windowed)
             {
                 g_Supervisor.cfg.windowed = 1;
@@ -590,7 +573,7 @@ u32 MainMenu::OnUpdateOptionsMenu()
                 g_Supervisor.cfg.windowed--;
             }
             break;
-        case 5:
+        case MENU_CURSOR_OPTIONS_SLOW_MODE:
             if (!g_Supervisor.cfg.slowMode)
             {
                 g_Supervisor.cfg.slowMode = 1;
@@ -612,7 +595,7 @@ skip_left_sound:
     {
         switch (this->cursor)
         {
-        case 0:
+        case MENU_CURSOR_OPTIONS_MENU_LIVES:
             if (g_Supervisor.cfg.lifeCount >= 4)
             {
                 g_Supervisor.cfg.lifeCount = 0;
@@ -622,7 +605,7 @@ skip_left_sound:
                 g_Supervisor.cfg.lifeCount++;
             }
             break;
-        case 1:
+        case MENU_CURSOR_OPTIONS_COLOR_MODE:
             if (g_Supervisor.cfg.colorMode16bit >= 1)
             {
                 g_Supervisor.cfg.colorMode16bit = 0;
@@ -632,7 +615,7 @@ skip_left_sound:
                 g_Supervisor.cfg.colorMode16bit++;
             }
             break;
-        case 2:
+        case MENU_CURSOR_OPTIONS_MUSIC_MODE:
             g_Supervisor.StopAudio();
             if (g_Supervisor.cfg.musicMode >= MUSIC_MIDI)
             {
@@ -645,7 +628,7 @@ skip_left_sound:
             g_Supervisor.LoadAudio(8, "bgm/th07_01.mid");
             g_Supervisor.PlayLoadedAudio(8);
             break;
-        case 3:
+        case MENU_CURSOR_OPTIONS_PLAY_SFX:
             if (g_Supervisor.cfg.playSounds >= 1)
             {
                 g_Supervisor.cfg.playSounds = 0;
@@ -655,7 +638,7 @@ skip_left_sound:
                 g_Supervisor.cfg.playSounds++;
             }
             break;
-        case 4:
+        case MENU_CURSOR_OPTIONS_WINDOW_MODE:
             if (g_Supervisor.cfg.windowed >= 1)
             {
                 g_Supervisor.cfg.windowed = 0;
@@ -665,7 +648,7 @@ skip_left_sound:
                 g_Supervisor.cfg.windowed++;
             }
             break;
-        case 5:
+        case MENU_CURSOR_OPTIONS_SLOW_MODE:
             if (g_Supervisor.cfg.slowMode >= 1)
             {
                 g_Supervisor.cfg.slowMode = 0;
@@ -690,14 +673,14 @@ skip_right_sound:
 
     if (this->idleFrames >= 3600)
     {
-        goto LAB_00456cc0;
+        goto RETURN_TO_PREINPUT;
     }
 
     if (WAS_PRESSED_RAW(TH_BUTTON_SELECTMENU))
     {
         switch (this->cursor)
         {
-        case 6:
+        case MENU_CURSOR_OPTIONS_RESET:
             g_Supervisor.cfg.lifeCount = 2;
             g_Supervisor.cfg.bombCount = 3;
             g_Supervisor.cfg.musicMode = MUSIC_WAV;
@@ -706,16 +689,16 @@ skip_right_sound:
             g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
             g_SoundPlayer.ProcessQueues();
             break;
-        case 7:
+        case MENU_CURSOR_OPTIONS_KEY_CONFIG:
             this->cursor = 0;
-            SetGameState(STATE_KEY_CONFIG);
+            SetMenuState(MENU_STATE_KEY_CONFIG);
             g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
             g_SoundPlayer.ProcessQueues();
             return CHAIN_CALLBACK_RESULT_CONTINUE;
-        case 8:
-        LAB_00456cc0:
-            this->cursor = 6;
-            SetGameState(STATE_PRE_INPUT);
+        case MENU_CURSOR_OPTIONS_EXIT:
+        RETURN_TO_PREINPUT:
+            this->cursor = MENU_CURSOR_PREINPUT_OPTIONS;
+            SetMenuState(MENU_STATE_PRE_INPUT);
             g_SoundPlayer.PlaySoundByIdx(SOUND_BACK, 0);
             g_SoundPlayer.ProcessQueues();
             if (this->cfg.colorMode16bit != g_Supervisor.cfg.colorMode16bit ||
@@ -729,15 +712,15 @@ skip_right_sound:
 
     if (WAS_PRESSED_RAW(TH_BUTTON_RETURNMENU))
     {
-        if (this->cursor == 8)
+        if (this->cursor == MENU_CURSOR_OPTIONS_EXIT)
         {
-            goto LAB_00456cc0;
+            goto RETURN_TO_PREINPUT;
         }
-        g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 9],
-                                      this->vmHead[this->cursor + 9].baseSpriteIdx + 1);
-        this->cursor = 8;
-        g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 9],
-                                      (i32)this->vmHead[this->cursor + 9].baseSpriteIdx);
+        g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 9],
+                                      this->vms[this->cursor + 9].baseSpriteIdx + 1);
+        this->cursor = MENU_CURSOR_OPTIONS_EXIT;
+        g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 9],
+                                      (i32)this->vms[this->cursor + 9].baseSpriteIdx);
         g_SoundPlayer.PlaySoundByIdx(SOUND_BACK, 0);
         g_SoundPlayer.ProcessQueues();
     }
@@ -799,24 +782,24 @@ u32 MainMenu::OnUpdateKeyConfig()
 
     switch (this->menuSubState)
     {
-    case 0:
+    case MENU_SUBSTATE_SELECT_INIT:
         if (this->stateTimer == 0)
         {
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 4);
-            for (i = 0; i < 12; i++)
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 4);
+            for (i = 0; i < ARRAY_SIZE_SIGNED(g_KeyConfigStrings); i++)
             {
-                g_AnmManager->SetActiveSprite(&this->vmHead[i + 35],
-                                              this->vmHead[i + 35].baseSpriteIdx + 1);
+                g_AnmManager->SetActiveSprite(&this->vms[i + 35],
+                                              this->vms[i + 35].baseSpriteIdx + 1);
             }
-            g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 35],
-                                          (i32)this->vmHead[this->cursor + 35].baseSpriteIdx);
-            this->menuSubState = 0;
+            g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 35],
+                                          (i32)this->vms[this->cursor + 35].baseSpriteIdx);
+            this->menuSubState = MENU_SUBSTATE_SELECT_INIT;
             this->inputDelayTimer = 0;
             this->controlMapping = g_Supervisor.cfg.controllerMapping;
             g_Supervisor.cfg.controllerMapping.upButton = -1;
             g_Supervisor.cfg.controllerMapping.downButton = -1;
 
-            vm = &this->vmHead[47];
+            vm = &this->vms[47];
             UpdateMenuDigits(vm, this->controlMapping.shootButton);
             vm += 2;
             UpdateMenuDigits(vm, this->controlMapping.bombButton);
@@ -837,33 +820,33 @@ u32 MainMenu::OnUpdateKeyConfig()
 
             this->selected = -1;
         }
-        this->menuSubState = 1;
-        for (i = 0; (u32)i < 12; i++)
+        this->menuSubState = MENU_SUBSTATE_SELECT_INPUT;
+        for (i = 0; i < ARRAY_SIZE(g_KeyConfigStrings); i++)
         {
-            g_AnmManager->DrawStringFormat2(&this->vms[i], 0xfff0e0, 0x300000,
+            g_AnmManager->DrawStringFormat2(&this->descriptionVms[i], 0xfff0e0, 0x300000,
                                             g_KeyConfigStrings[i]);
         }
-    case 1:
-        if (MoveCursorVertical(12))
+    case MENU_SUBSTATE_SELECT_INPUT:
+        if (MoveCursorVertical(ARRAY_SIZE_SIGNED(g_KeyConfigStrings)))
         {
-            for (i = 0; i < 12; i++)
+            for (i = 0; i < ARRAY_SIZE_SIGNED(g_KeyConfigStrings); i++)
             {
-                g_AnmManager->SetActiveSprite(&this->vmHead[i + 35],
-                                              this->vmHead[i + 35].baseSpriteIdx + 1);
+                g_AnmManager->SetActiveSprite(&this->vms[i + 35],
+                                              this->vms[i + 35].baseSpriteIdx + 1);
             }
-            g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 35],
-                                          (i32)this->vmHead[this->cursor + 35].baseSpriteIdx);
+            g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 35],
+                                          (i32)this->vms[this->cursor + 35].baseSpriteIdx);
         }
         if (this->selected != this->cursor)
         {
-            this->cursorVm = &this->vms[this->cursor];
+            this->curDescriptionVm = &this->descriptionVms[this->cursor];
             // this should be using SetInterrupt?
-            cursorVmTmp = this->cursorVm;
+            cursorVmTmp = this->curDescriptionVm;
             cursorVmTmp->pendingInterrupt = 1;
         }
         this->selected = this->cursor;
 
-        vm = &this->vmHead[47];
+        vm = &this->vms[47];
         UpdateMenuDigits(vm, this->controlMapping.shootButton);
         vm += 2;
         UpdateMenuDigits(vm, this->controlMapping.bombButton);
@@ -884,10 +867,10 @@ u32 MainMenu::OnUpdateKeyConfig()
 
         for (i = 65; i <= 66; i++)
         {
-            g_AnmManager->SetActiveSprite(&this->vmHead[i], this->vmHead[i].baseSpriteIdx + 1);
+            g_AnmManager->SetActiveSprite(&this->vms[i], this->vms[i].baseSpriteIdx + 1);
         }
         i = g_Supervisor.cfg.shotSlow + 65;
-        g_AnmManager->SetActiveSprite(&this->vmHead[i], (i32)this->vmHead[i].baseSpriteIdx);
+        g_AnmManager->SetActiveSprite(&this->vms[i], (i32)this->vms[i].baseSpriteIdx);
 
         controllerState = Controller::GetControllerState();
         for (btnPressed = 0; btnPressed < 32; btnPressed++)
@@ -901,39 +884,39 @@ u32 MainMenu::OnUpdateKeyConfig()
         {
             switch (this->cursor)
             {
-            case 0:
+            case MENU_CURSOR_KEYCONFIG_SHOOT:
                 SwapMapping(btnPressed, this->controlMapping.shootButton);
                 this->controlMapping.shootButton = btnPressed;
                 break;
-            case 1:
+            case MENU_CURSOR_KEYCONFIG_BOMB:
                 SwapMapping(btnPressed, this->controlMapping.bombButton);
                 this->controlMapping.bombButton = btnPressed;
                 break;
-            case 2:
+            case MENU_CURSOR_KEYCONFIG_FOCUS:
                 SwapMapping(btnPressed, this->controlMapping.focusButton);
                 this->controlMapping.focusButton = btnPressed;
                 break;
-            case 4:
+            case MENU_CURSOR_KEYCONFIG_MENU:
                 SwapMapping(btnPressed, this->controlMapping.menuButton);
                 this->controlMapping.menuButton = btnPressed;
                 break;
-            case 5:
+            case MENU_CURSOR_KEYCONFIG_UP:
                 SwapMapping(btnPressed, this->controlMapping.upButton);
                 this->controlMapping.upButton = btnPressed;
                 break;
-            case 6:
+            case MENU_CURSOR_KEYCONFIG_DOWN:
                 SwapMapping(btnPressed, this->controlMapping.downButton);
                 this->controlMapping.downButton = btnPressed;
                 break;
-            case 7:
+            case MENU_CURSOR_KEYCONFIG_LEFT:
                 SwapMapping(btnPressed, this->controlMapping.leftButton);
                 this->controlMapping.leftButton = btnPressed;
                 break;
-            case 8:
+            case MENU_CURSOR_KEYCONFIG_RIGHT:
                 SwapMapping(btnPressed, this->controlMapping.rightButton);
                 this->controlMapping.rightButton = btnPressed;
                 break;
-            case 3:
+            case MENU_CURSOR_KEYCONFIG_SKIP:
                 SwapMapping(btnPressed, this->controlMapping.skipButton);
                 this->controlMapping.skipButton = btnPressed;
                 break;
@@ -950,7 +933,7 @@ u32 MainMenu::OnUpdateKeyConfig()
         {
             switch (this->cursor)
             {
-            case 9:
+            case MENU_CURSOR_KEYCONFIG_SHOTSLOW:
                 g_Supervisor.cfg.shotSlow = 1 - g_Supervisor.cfg.shotSlow;
             }
         }
@@ -958,7 +941,7 @@ u32 MainMenu::OnUpdateKeyConfig()
         {
             switch (this->cursor)
             {
-            case 9:
+            case MENU_CURSOR_KEYCONFIG_SHOTSLOW:
                 g_Supervisor.cfg.shotSlow = 1 - g_Supervisor.cfg.shotSlow;
             }
         }
@@ -974,19 +957,19 @@ u32 MainMenu::OnUpdateKeyConfig()
         {
             switch (this->cursor)
             {
-            case 10:
+            case MENU_CURSOR_KEYCONFIG_RESET:
                 g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
                 g_SoundPlayer.ProcessQueues();
                 this->controlMapping = g_ControllerMapping;
                 g_Supervisor.cfg.shotSlow = 1;
                 break;
-            case 11:
+            case MENU_CURSOR_KEYCONFIG_EXIT:
             exit_config:
                 g_SoundPlayer.PlaySoundByIdx(SOUND_BACK, 0);
                 g_SoundPlayer.ProcessQueues();
-                SetGameState(STATE_OPTIONS);
+                SetMenuState(MENU_STATE_OPTIONS);
                 g_Supervisor.cfg.controllerMapping = this->controlMapping;
-                this->cursor = 7;
+                this->cursor = MENU_CURSOR_OPTIONS_KEY_CONFIG;
                 return CHAIN_CALLBACK_RESULT_CONTINUE;
             }
         }
@@ -998,68 +981,68 @@ u32 MainMenu::OnUpdateKeyConfig()
     return CHAIN_CALLBACK_RESULT_CONTINUE;
 }
 
-ZunResult MainMenu::UpdateMenuDigits(AnmVm *param_1, i16 param_2)
+ZunResult MainMenu::UpdateMenuDigits(AnmVm *vm, i16 number)
 {
-    if (param_2 < 0)
+    if (number < 0)
     {
-        param_1->active = 0;
-        param_1[1].active = 0;
+        vm->active = 0;
+        vm[1].active = 0;
     }
     else
     {
-        g_AnmManager->SetActiveSprite(param_1, (i32)param_1->baseSpriteIdx + (i32)param_2 / 10 * 2);
-        g_AnmManager->SetActiveSprite(param_1 + 1,
-                                      (i32)param_1[1].baseSpriteIdx + (i32)param_2 % 10 * 2);
-        param_1->active = 1;
-        param_1[1].active = 1;
+        g_AnmManager->SetActiveSprite(vm, (i32)vm->baseSpriteIdx + (i32)number / 10 * 2);
+        g_AnmManager->SetActiveSprite(vm + 1, (i32)vm[1].baseSpriteIdx + (i32)number % 10 * 2);
+        vm->active = 1;
+        vm[1].active = 1;
     }
     return ZUN_SUCCESS;
 }
 
 u32 MainMenu::OnUpdateSelectDifficulty()
 {
-    i32 oldGameState;
+    i32 oldMenuState;
     i32 numDifficulties;
     i32 i;
 
     switch (this->menuSubState)
     {
-    case 0:
+    case MENU_SUBSTATE_SELECT_INIT:
         if (this->stateTimer == 0)
         {
-            if (this->prevGameState != 5 && this->prevGameState != 9 &&
-                this->prevGameState != STATE_EXTRA_SELECT_CHARACTER &&
+            if (this->prevMenuState != MENU_STATE_NORMAL_SELECT_CHARACTER &&
+                this->prevMenuState != MENU_STATE_PRACTICE_SELECT_CHARACTER &&
+                this->prevMenuState != MENU_STATE_EXTRA_SELECT_CHARACTER &&
                 g_AnmManager->LoadSurface(0, "data/title/select00.jpg") != ZUN_SUCCESS)
             {
                 return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
             }
             this->cursor = g_Supervisor.cfg.defaultDifficulty;
-            if (this->gameState != STATE_EXTRA_SELECT_DIFFICULTY)
+            if (this->menuState != MENU_STATE_EXTRA_SELECT_DIFFICULTY)
             {
-                g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 7);
+                g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 7);
             }
-            else if (g_GameManager.HasUnlockedPhantomAndMaxClears() == 0)
+            else if (!g_GameManager.HasUnlockedPhantasmAndMaxClears())
             {
-                g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 12);
-                this->cursor = 4;
+                g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 12);
+                this->cursor = MENU_CURSOR_SELECTDIFFICULTY_EXTRA;
             }
             else
             {
-                g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 22);
+                g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 22);
             }
-            if (this->gameState != STATE_EXTRA_SELECT_DIFFICULTY)
+            if (this->menuState != MENU_STATE_EXTRA_SELECT_DIFFICULTY)
             {
-                if (this->cursor >= 4)
+                if (this->cursor >= MENU_CURSOR_SELECTDIFFICULTY_EXTRA)
                 {
-                    this->cursor = 1;
+                    this->cursor = MENU_CURSOR_SELECTDIFFICULTY_NORMAL;
                 }
                 for (i = 0; i < 4; i++)
                 {
-                    g_AnmManager->SetActiveSprite(&this->vmHead[i + 67],
-                                                  this->vmHead[i + 67].baseSpriteIdx + 1);
+                    g_AnmManager->SetActiveSprite(&this->vms[i + 67],
+                                                  this->vms[i + 67].baseSpriteIdx + 1);
                 }
-                g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 67],
-                                              (i32)this->vmHead[this->cursor + 67].baseSpriteIdx);
+                g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 67],
+                                              (i32)this->vms[this->cursor + 67].baseSpriteIdx);
             }
             else
             {
@@ -1070,57 +1053,57 @@ u32 MainMenu::OnUpdateSelectDifficulty()
                 }
                 for (i = 0; i < 2; i++)
                 {
-                    g_AnmManager->SetActiveSprite(&this->vmHead[i + 162],
-                                                  this->vmHead[i + 162].baseSpriteIdx + 1);
+                    g_AnmManager->SetActiveSprite(&this->vms[i + 162],
+                                                  this->vms[i + 162].baseSpriteIdx + 1);
                 }
-                g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 162],
-                                              (i32)this->vmHead[this->cursor + 162].baseSpriteIdx);
+                g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 162],
+                                              (i32)this->vms[this->cursor + 162].baseSpriteIdx);
             }
-            this->menuSubState = 0;
+            this->menuSubState = MENU_SUBSTATE_SELECT_INIT;
             this->inputDelayTimer = 0;
-            this->cursorVm = NULL;
+            this->curDescriptionVm = NULL;
         }
         if (this->isPracticeMode)
         {
-            SetGameState(STATE_PRACTICE_SELECT_CHARACTER);
+            SetMenuState(MENU_STATE_PRACTICE_SELECT_CHARACTER);
             this->cursor = 0;
             return CHAIN_CALLBACK_RESULT_CONTINUE;
         }
         if (this->stateTimer == 30)
         {
-            this->menuSubState = 1;
+            this->menuSubState = MENU_SUBSTATE_SELECT_INPUT;
         }
         break;
-    case 1:
-        numDifficulties = this->gameState != STATE_EXTRA_SELECT_DIFFICULTY ? 4
-                          : g_GameManager.HasUnlockedPhantomAndMaxClears() ? 2
-                                                                           : 1;
+    case MENU_SUBSTATE_SELECT_INPUT:
+        numDifficulties = this->menuState != MENU_STATE_EXTRA_SELECT_DIFFICULTY ? 4
+                          : g_GameManager.HasUnlockedPhantasmAndMaxClears()     ? 2
+                                                                                : 1;
         if (MoveCursorVertical(numDifficulties))
         {
-            if (this->gameState != STATE_EXTRA_SELECT_DIFFICULTY)
+            if (this->menuState != MENU_STATE_EXTRA_SELECT_DIFFICULTY)
             {
                 for (i = 0; i < 4; i++)
                 {
-                    g_AnmManager->SetActiveSprite(&this->vmHead[i + 67],
-                                                  this->vmHead[i + 67].baseSpriteIdx + 1);
+                    g_AnmManager->SetActiveSprite(&this->vms[i + 67],
+                                                  this->vms[i + 67].baseSpriteIdx + 1);
                 }
-                g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 67],
-                                              (i32)this->vmHead[this->cursor + 67].baseSpriteIdx);
+                g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 67],
+                                              (i32)this->vms[this->cursor + 67].baseSpriteIdx);
             }
             else if (numDifficulties == 2)
             {
                 for (i = 0; i < 2; i++)
                 {
-                    g_AnmManager->SetActiveSprite(&this->vmHead[i + 162],
-                                                  this->vmHead[i + 162].baseSpriteIdx + 1);
+                    g_AnmManager->SetActiveSprite(&this->vms[i + 162],
+                                                  this->vms[i + 162].baseSpriteIdx + 1);
                 }
-                g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 162],
-                                              (i32)this->vmHead[this->cursor + 162].baseSpriteIdx);
+                g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 162],
+                                              (i32)this->vms[this->cursor + 162].baseSpriteIdx);
             }
         }
         if (WAS_PRESSED_RAW(TH_BUTTON_SELECTMENU))
         {
-            if (this->gameState != STATE_EXTRA_SELECT_DIFFICULTY)
+            if (this->menuState != MENU_STATE_EXTRA_SELECT_DIFFICULTY)
             {
                 g_Supervisor.cfg.defaultDifficulty = this->cursor;
             }
@@ -1130,20 +1113,20 @@ u32 MainMenu::OnUpdateSelectDifficulty()
             }
             g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
             g_SoundPlayer.ProcessQueues();
-            if (this->gameState != STATE_EXTRA_SELECT_DIFFICULTY)
+            if (this->menuState != MENU_STATE_EXTRA_SELECT_DIFFICULTY)
             {
                 if (!g_GameManager.practice)
                 {
-                    SetGameState(STATE_NORMAL_SELECT_CHARACTER);
+                    SetMenuState(MENU_STATE_NORMAL_SELECT_CHARACTER);
                 }
                 else
                 {
-                    SetGameState(STATE_PRACTICE_SELECT_CHARACTER);
+                    SetMenuState(MENU_STATE_PRACTICE_SELECT_CHARACTER);
                 }
             }
             else
             {
-                SetGameState(STATE_EXTRA_SELECT_CHARACTER);
+                SetMenuState(MENU_STATE_EXTRA_SELECT_CHARACTER);
             }
 
             this->cursor = 0;
@@ -1151,7 +1134,7 @@ u32 MainMenu::OnUpdateSelectDifficulty()
         }
         if (WAS_PRESSED_RAW(TH_BUTTON_RETURNMENU))
         {
-            if (this->gameState != STATE_EXTRA_SELECT_DIFFICULTY)
+            if (this->menuState != MENU_STATE_EXTRA_SELECT_DIFFICULTY)
             {
                 g_Supervisor.cfg.defaultDifficulty = this->cursor;
             }
@@ -1163,28 +1146,28 @@ u32 MainMenu::OnUpdateSelectDifficulty()
             g_SoundPlayer.ProcessQueues();
             this->menuSubState = 3;
             this->inputDelayTimer = 0;
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 6);
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 6);
         }
         break;
     case 3:
         if (this->inputDelayTimer >= 30)
         {
-            oldGameState = this->gameState;
-            SetGameState(STATE_PRE_INPUT);
-            if (oldGameState != STATE_EXTRA_SELECT_DIFFICULTY)
+            oldMenuState = this->menuState;
+            SetMenuState(MENU_STATE_PRE_INPUT);
+            if (oldMenuState != MENU_STATE_EXTRA_SELECT_DIFFICULTY)
             {
                 if (!g_GameManager.practice)
                 {
-                    this->cursor = 0;
+                    this->cursor = MENU_CURSOR_PREINPUT_START;
                 }
                 else
                 {
-                    this->cursor = 2;
+                    this->cursor = MENU_CURSOR_PREINPUT_PRACTICE_START;
                 }
             }
             else
             {
-                this->cursor = 1;
+                this->cursor = MENU_CURSOR_PREINPUT_EXTRA_START;
             }
             g_GameManager.practice = 0;
             return CHAIN_CALLBACK_RESULT_CONTINUE;
@@ -1200,233 +1183,233 @@ u32 MainMenu::OnUpdateSelectCharacter()
 {
     switch (this->menuSubState)
     {
-    case 0:
+    case MENU_SUBSTATE_SELECT_INIT:
         if (this->stateTimer == 0)
         {
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 8);
-            if (g_Supervisor.cfg.defaultDifficulty < 4)
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 8);
+            if (g_Supervisor.cfg.defaultDifficulty < DIFF_EXTRA)
             {
-                this->vmHead[g_Supervisor.cfg.defaultDifficulty + 67].SetInterrupt(9);
+                this->vms[g_Supervisor.cfg.defaultDifficulty + 67].SetInterrupt(9);
             }
             else
             {
-                if (g_GameManager.HasUnlockedPhantomAndMaxClears() == 0)
+                if (!g_GameManager.HasUnlockedPhantasmAndMaxClears())
                 {
-                    this->vmHead[161].SetInterrupt(9);
+                    this->vms[161].SetInterrupt(9);
                 }
                 else
                 {
-                    this->vmHead[g_Supervisor.cfg.defaultDifficulty + 158].SetInterrupt(9);
+                    this->vms[g_Supervisor.cfg.defaultDifficulty + 158].SetInterrupt(9);
                 }
             }
             this->cursor = g_GameManager.character;
-            if (g_Supervisor.cfg.defaultDifficulty == 4)
+            if (g_Supervisor.cfg.defaultDifficulty == DIFF_EXTRA)
             {
-                while (g_GameManager.HasReachedMaxClears(this->cursor << 1) == 0 &&
-                       g_GameManager.HasReachedMaxClears(this->cursor * 2 + 1) == 0)
+                while (!g_GameManager.HasReachedMaxClearsAnyDifficulty(this->cursor * 2) &&
+                       !g_GameManager.HasReachedMaxClearsAnyDifficulty(this->cursor * 2 + 1))
                 {
                     this->cursor++;
-                    if (this->cursor >= 3)
+                    if (this->cursor >= MENU_CURSOR_SELECTCHARACTER_COUNT)
                     {
-                        this->cursor -= 3;
+                        this->cursor -= MENU_CURSOR_SELECTCHARACTER_COUNT;
                     }
                 }
             }
-            else if (g_Supervisor.cfg.defaultDifficulty == 5)
+            else if (g_Supervisor.cfg.defaultDifficulty == DIFF_PHANTASM)
             {
-                while (g_GameManager.HasUnlockedPhantom(this->cursor << 1) == 0 &&
-                       g_GameManager.HasUnlockedPhantom(this->cursor * 2 + 1) == 0)
+                while (g_GameManager.HasUnlockedPhantasm(this->cursor << 1) == 0 &&
+                       g_GameManager.HasUnlockedPhantasm(this->cursor * 2 + 1) == 0)
                 {
                     this->cursor++;
-                    if (this->cursor >= 3)
+                    if (this->cursor >= MENU_CURSOR_SELECTCHARACTER_COUNT)
                     {
-                        this->cursor -= 3;
+                        this->cursor -= MENU_CURSOR_SELECTCHARACTER_COUNT;
                     }
                 }
             }
-            this->vmHead[72].active = 0;
-            this->vmHead[73].active = 0;
-            this->vmHead[71].active = 0;
-            this->vmHead[80].active = 0;
-            this->vmHead[83].active = 0;
-            this->vmHead[75].active = 0;
-            this->vmHead[76].active = 0;
-            this->vmHead[74].active = 0;
-            this->vmHead[81].active = 0;
-            this->vmHead[84].active = 0;
-            this->vmHead[78].active = 0;
-            this->vmHead[79].active = 0;
-            this->vmHead[77].active = 0;
-            this->vmHead[82].active = 0;
-            this->vmHead[85].active = 0;
+            this->vms[72].active = 0;
+            this->vms[73].active = 0;
+            this->vms[71].active = 0;
+            this->vms[80].active = 0;
+            this->vms[83].active = 0;
+            this->vms[75].active = 0;
+            this->vms[76].active = 0;
+            this->vms[74].active = 0;
+            this->vms[81].active = 0;
+            this->vms[84].active = 0;
+            this->vms[78].active = 0;
+            this->vms[79].active = 0;
+            this->vms[77].active = 0;
+            this->vms[82].active = 0;
+            this->vms[85].active = 0;
             switch (this->cursor)
             {
-            case 0:
-                this->vmHead[72].active = 1;
-                this->vmHead[73].active = 1;
-                this->vmHead[71].active = 1;
-                this->vmHead[80].active = 1;
-                this->vmHead[83].active = 1;
+            case MENU_CURSOR_SELECTCHARACTER_REIMU:
+                this->vms[72].active = 1;
+                this->vms[73].active = 1;
+                this->vms[71].active = 1;
+                this->vms[80].active = 1;
+                this->vms[83].active = 1;
                 break;
-            case 1:
-                this->vmHead[75].active = 1;
-                this->vmHead[76].active = 1;
-                this->vmHead[74].active = 1;
-                this->vmHead[81].active = 1;
-                this->vmHead[84].active = 1;
+            case MENU_CURSOR_SELECTCHARACTER_MARISA:
+                this->vms[75].active = 1;
+                this->vms[76].active = 1;
+                this->vms[74].active = 1;
+                this->vms[81].active = 1;
+                this->vms[84].active = 1;
                 break;
-            case 2:
-                this->vmHead[78].active = 1;
-                this->vmHead[79].active = 1;
-                this->vmHead[77].active = 1;
-                this->vmHead[82].active = 1;
-                this->vmHead[85].active = 1;
+            case MENU_CURSOR_SELECTCHARACTER_SAKUYA:
+                this->vms[78].active = 1;
+                this->vms[79].active = 1;
+                this->vms[77].active = 1;
+                this->vms[82].active = 1;
+                this->vms[85].active = 1;
                 break;
             }
             switch (this->cursor)
             {
-            case 0:
-                this->vmHead[71].SetInterrupt(9);
-                this->vmHead[74].SetInterrupt(8);
-                this->vmHead[77].SetInterrupt(8);
-                this->vmHead[74].color.bytes.a = 0;
-                this->vmHead[77].color.bytes.a = 0;
-                this->vmHead[80].SetInterrupt(9);
-                this->vmHead[81].SetInterrupt(8);
-                this->vmHead[82].SetInterrupt(8);
-                this->vmHead[81].color.bytes.a = 0;
-                this->vmHead[82].color.bytes.a = 0;
-                this->vmHead[83].SetInterrupt(9);
-                this->vmHead[84].SetInterrupt(8);
-                this->vmHead[85].SetInterrupt(8);
-                this->vmHead[84].color.bytes.a = 0;
-                this->vmHead[85].color.bytes.a = 0;
+            case MENU_CURSOR_SELECTCHARACTER_REIMU:
+                this->vms[71].SetInterrupt(9);
+                this->vms[74].SetInterrupt(8);
+                this->vms[77].SetInterrupt(8);
+                this->vms[74].color.bytes.a = 0;
+                this->vms[77].color.bytes.a = 0;
+                this->vms[80].SetInterrupt(9);
+                this->vms[81].SetInterrupt(8);
+                this->vms[82].SetInterrupt(8);
+                this->vms[81].color.bytes.a = 0;
+                this->vms[82].color.bytes.a = 0;
+                this->vms[83].SetInterrupt(9);
+                this->vms[84].SetInterrupt(8);
+                this->vms[85].SetInterrupt(8);
+                this->vms[84].color.bytes.a = 0;
+                this->vms[85].color.bytes.a = 0;
                 break;
-            case 1:
-                this->vmHead[71].SetInterrupt(8);
-                this->vmHead[74].SetInterrupt(9);
-                this->vmHead[77].SetInterrupt(8);
-                this->vmHead[71].color.bytes.a = 0;
-                this->vmHead[77].color.bytes.a = 0;
-                this->vmHead[80].SetInterrupt(8);
-                this->vmHead[81].SetInterrupt(9);
-                this->vmHead[82].SetInterrupt(8);
-                this->vmHead[80].color.bytes.a = 0;
-                this->vmHead[82].color.bytes.a = 0;
-                this->vmHead[83].SetInterrupt(8);
-                this->vmHead[84].SetInterrupt(9);
-                this->vmHead[85].SetInterrupt(8);
-                this->vmHead[83].color.bytes.a = 0;
-                this->vmHead[85].color.bytes.a = 0;
+            case MENU_CURSOR_SELECTCHARACTER_MARISA:
+                this->vms[71].SetInterrupt(8);
+                this->vms[74].SetInterrupt(9);
+                this->vms[77].SetInterrupt(8);
+                this->vms[71].color.bytes.a = 0;
+                this->vms[77].color.bytes.a = 0;
+                this->vms[80].SetInterrupt(8);
+                this->vms[81].SetInterrupt(9);
+                this->vms[82].SetInterrupt(8);
+                this->vms[80].color.bytes.a = 0;
+                this->vms[82].color.bytes.a = 0;
+                this->vms[83].SetInterrupt(8);
+                this->vms[84].SetInterrupt(9);
+                this->vms[85].SetInterrupt(8);
+                this->vms[83].color.bytes.a = 0;
+                this->vms[85].color.bytes.a = 0;
                 break;
-            case 2:
-                this->vmHead[71].SetInterrupt(8);
-                this->vmHead[74].SetInterrupt(8);
-                this->vmHead[77].SetInterrupt(9);
-                this->vmHead[74].color.bytes.a = 0;
-                this->vmHead[71].color.bytes.a = 0;
-                this->vmHead[80].SetInterrupt(8);
-                this->vmHead[81].SetInterrupt(8);
-                this->vmHead[82].SetInterrupt(9);
-                this->vmHead[80].color.bytes.a = 0;
-                this->vmHead[81].color.bytes.a = 0;
-                this->vmHead[83].SetInterrupt(8);
-                this->vmHead[84].SetInterrupt(8);
-                this->vmHead[85].SetInterrupt(9);
-                this->vmHead[83].color.bytes.a = 0;
-                this->vmHead[84].color.bytes.a = 0;
+            case MENU_CURSOR_SELECTCHARACTER_SAKUYA:
+                this->vms[71].SetInterrupt(8);
+                this->vms[74].SetInterrupt(8);
+                this->vms[77].SetInterrupt(9);
+                this->vms[74].color.bytes.a = 0;
+                this->vms[71].color.bytes.a = 0;
+                this->vms[80].SetInterrupt(8);
+                this->vms[81].SetInterrupt(8);
+                this->vms[82].SetInterrupt(9);
+                this->vms[80].color.bytes.a = 0;
+                this->vms[81].color.bytes.a = 0;
+                this->vms[83].SetInterrupt(8);
+                this->vms[84].SetInterrupt(8);
+                this->vms[85].SetInterrupt(9);
+                this->vms[83].color.bytes.a = 0;
+                this->vms[84].color.bytes.a = 0;
                 break;
             }
-            this->menuSubState = 0;
+            this->menuSubState = MENU_SUBSTATE_SELECT_INIT;
             this->inputDelayTimer = 0;
         }
         if (this->isPracticeMode)
         {
-            SetGameState(STATE_PRACTICE_SELECT_SHOTTYPE);
+            SetMenuState(MENU_STATE_PRACTICE_SELECT_SHOTTYPE);
             this->cursor = 0;
             return CHAIN_CALLBACK_RESULT_CONTINUE;
         }
         if (this->stateTimer == 30)
         {
-            this->menuSubState = 1;
+            this->menuSubState = MENU_SUBSTATE_SELECT_INPUT;
         }
         break;
-    case 1:
+    case MENU_SUBSTATE_SELECT_INPUT:
         if (MoveCursorHorizontal(3) != ZUN_SUCCESS)
         {
-            if (g_Supervisor.cfg.defaultDifficulty == 4)
+            if (g_Supervisor.cfg.defaultDifficulty == DIFF_EXTRA)
             {
-                while (g_GameManager.HasReachedMaxClears(this->cursor << 1) == 0 &&
-                       g_GameManager.HasReachedMaxClears(this->cursor * 2 + 1) == 0)
+                while (!g_GameManager.HasReachedMaxClearsAnyDifficulty(this->cursor * 2) &&
+                       !g_GameManager.HasReachedMaxClearsAnyDifficulty(this->cursor * 2 + 1))
                 {
                     this->cursor++;
-                    if (this->cursor >= 3)
+                    if (this->cursor >= MENU_CURSOR_SELECTCHARACTER_COUNT)
                     {
-                        this->cursor -= 3;
+                        this->cursor -= MENU_CURSOR_SELECTCHARACTER_COUNT;
                     }
                 }
             }
             else if (g_Supervisor.cfg.defaultDifficulty == 5)
             {
-                while (g_GameManager.HasUnlockedPhantom(this->cursor << 1) == 0 &&
-                       g_GameManager.HasUnlockedPhantom(this->cursor * 2 + 1) == 0)
+                while (g_GameManager.HasUnlockedPhantasm(this->cursor << 1) == 0 &&
+                       g_GameManager.HasUnlockedPhantasm(this->cursor * 2 + 1) == 0)
                 {
                     this->cursor++;
-                    if (this->cursor >= 3)
+                    if (this->cursor >= MENU_CURSOR_SELECTCHARACTER_COUNT)
                     {
-                        this->cursor -= 3;
+                        this->cursor -= MENU_CURSOR_SELECTCHARACTER_COUNT;
                     }
                 }
             }
-            this->vmHead[72].flags = this->vmHead[72].flags | 2;
-            this->vmHead[73].flags = this->vmHead[73].flags | 2;
-            this->vmHead[71].flags = this->vmHead[71].flags | 2;
-            this->vmHead[80].flags = this->vmHead[80].flags | 2;
-            this->vmHead[83].flags = this->vmHead[83].flags | 2;
-            this->vmHead[75].flags = this->vmHead[75].flags | 2;
-            this->vmHead[76].flags = this->vmHead[76].flags | 2;
-            this->vmHead[74].flags = this->vmHead[74].flags | 2;
-            this->vmHead[81].flags = this->vmHead[81].flags | 2;
-            this->vmHead[84].flags = this->vmHead[84].flags | 2;
-            this->vmHead[78].flags = this->vmHead[78].flags | 2;
-            this->vmHead[79].flags = this->vmHead[79].flags | 2;
-            this->vmHead[77].flags = this->vmHead[77].flags | 2;
-            this->vmHead[82].flags = this->vmHead[82].flags | 2;
-            this->vmHead[85].flags = this->vmHead[85].flags | 2;
+            this->vms[72].active = 1;
+            this->vms[73].active = 1;
+            this->vms[71].active = 1;
+            this->vms[80].active = 1;
+            this->vms[83].active = 1;
+            this->vms[75].active = 1;
+            this->vms[76].active = 1;
+            this->vms[74].active = 1;
+            this->vms[81].active = 1;
+            this->vms[84].active = 1;
+            this->vms[78].active = 1;
+            this->vms[79].active = 1;
+            this->vms[77].active = 1;
+            this->vms[82].active = 1;
+            this->vms[85].active = 1;
             switch (this->cursor)
             {
-            case 0:
-                this->vmHead[71].SetInterrupt(9);
-                this->vmHead[74].SetInterrupt(8);
-                this->vmHead[77].SetInterrupt(8);
-                this->vmHead[80].SetInterrupt(9);
-                this->vmHead[81].SetInterrupt(8);
-                this->vmHead[82].SetInterrupt(8);
-                this->vmHead[83].SetInterrupt(9);
-                this->vmHead[84].SetInterrupt(8);
-                this->vmHead[85].SetInterrupt(8);
+            case MENU_CURSOR_SELECTCHARACTER_REIMU:
+                this->vms[71].SetInterrupt(9);
+                this->vms[74].SetInterrupt(8);
+                this->vms[77].SetInterrupt(8);
+                this->vms[80].SetInterrupt(9);
+                this->vms[81].SetInterrupt(8);
+                this->vms[82].SetInterrupt(8);
+                this->vms[83].SetInterrupt(9);
+                this->vms[84].SetInterrupt(8);
+                this->vms[85].SetInterrupt(8);
                 break;
-            case 1:
-                this->vmHead[71].SetInterrupt(8);
-                this->vmHead[74].SetInterrupt(9);
-                this->vmHead[77].SetInterrupt(8);
-                this->vmHead[80].SetInterrupt(8);
-                this->vmHead[81].SetInterrupt(9);
-                this->vmHead[82].SetInterrupt(8);
-                this->vmHead[83].SetInterrupt(8);
-                this->vmHead[84].SetInterrupt(9);
-                this->vmHead[85].SetInterrupt(8);
+            case MENU_CURSOR_SELECTCHARACTER_MARISA:
+                this->vms[71].SetInterrupt(8);
+                this->vms[74].SetInterrupt(9);
+                this->vms[77].SetInterrupt(8);
+                this->vms[80].SetInterrupt(8);
+                this->vms[81].SetInterrupt(9);
+                this->vms[82].SetInterrupt(8);
+                this->vms[83].SetInterrupt(8);
+                this->vms[84].SetInterrupt(9);
+                this->vms[85].SetInterrupt(8);
                 break;
-            case 2:
-                this->vmHead[71].SetInterrupt(8);
-                this->vmHead[74].SetInterrupt(8);
-                this->vmHead[77].SetInterrupt(9);
-                this->vmHead[80].SetInterrupt(8);
-                this->vmHead[81].SetInterrupt(8);
-                this->vmHead[82].SetInterrupt(9);
-                this->vmHead[83].SetInterrupt(8);
-                this->vmHead[84].SetInterrupt(8);
-                this->vmHead[85].SetInterrupt(9);
+            case MENU_CURSOR_SELECTCHARACTER_SAKUYA:
+                this->vms[71].SetInterrupt(8);
+                this->vms[74].SetInterrupt(8);
+                this->vms[77].SetInterrupt(9);
+                this->vms[80].SetInterrupt(8);
+                this->vms[81].SetInterrupt(8);
+                this->vms[82].SetInterrupt(9);
+                this->vms[83].SetInterrupt(8);
+                this->vms[84].SetInterrupt(8);
+                this->vms[85].SetInterrupt(9);
                 break;
             }
         }
@@ -1435,20 +1418,20 @@ u32 MainMenu::OnUpdateSelectCharacter()
             g_GameManager.character = this->cursor;
             g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
             g_SoundPlayer.ProcessQueues();
-            if (this->gameState != STATE_EXTRA_SELECT_CHARACTER)
+            if (this->menuState != MENU_STATE_EXTRA_SELECT_CHARACTER)
             {
                 if (!g_GameManager.practice)
                 {
-                    SetGameState(STATE_NORMAL_SELECT_SHOTTYPE);
+                    SetMenuState(MENU_STATE_NORMAL_SELECT_SHOTTYPE);
                 }
                 else
                 {
-                    SetGameState(STATE_PRACTICE_SELECT_SHOTTYPE);
+                    SetMenuState(MENU_STATE_PRACTICE_SELECT_SHOTTYPE);
                 }
             }
             else
             {
-                SetGameState(STATE_EXTRA_SELECT_SHOTTYPE);
+                SetMenuState(MENU_STATE_EXTRA_SELECT_SHOTTYPE);
             }
             this->cursor = 0;
             return CHAIN_CALLBACK_RESULT_CONTINUE;
@@ -1458,22 +1441,22 @@ u32 MainMenu::OnUpdateSelectCharacter()
             g_SoundPlayer.PlaySoundByIdx(SOUND_BACK, 0);
             g_SoundPlayer.ProcessQueues();
             g_GameManager.character = this->cursor;
-            if (this->gameState != STATE_EXTRA_SELECT_CHARACTER)
+            if (this->menuState != MENU_STATE_EXTRA_SELECT_CHARACTER)
             {
                 if (!g_GameManager.practice)
                 {
-                    SetGameState(STATE_NORMAL_SELECT_DIFFICULTY);
+                    SetMenuState(MENU_STATE_NORMAL_SELECT_DIFFICULTY);
                 }
                 else
                 {
-                    SetGameState(STATE_PRACTICE_SELECT_DIFFICULTY);
+                    SetMenuState(MENU_STATE_PRACTICE_SELECT_DIFFICULTY);
                 }
             }
             else
             {
-                SetGameState(STATE_EXTRA_SELECT_DIFFICULTY);
+                SetMenuState(MENU_STATE_EXTRA_SELECT_DIFFICULTY);
             }
-            this->cursor = 0;
+            this->cursor = MENU_CURSOR_SELECTDIFFICULTY_EASY;
             return CHAIN_CALLBACK_RESULT_CONTINUE;
         }
         break;
@@ -1490,111 +1473,111 @@ u32 MainMenu::OnUpdateSelectShotType()
 
     switch (this->menuSubState)
     {
-    case 0:
+    case MENU_SUBSTATE_SELECT_INIT:
         if (this->stateTimer == 0)
         {
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 10);
-            if (g_Supervisor.cfg.defaultDifficulty < 4)
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 10);
+            if (g_Supervisor.cfg.defaultDifficulty < DIFF_EXTRA)
             {
-                this->vmHead[g_Supervisor.cfg.defaultDifficulty + 67].SetInterrupt(9);
+                this->vms[g_Supervisor.cfg.defaultDifficulty + 67].SetInterrupt(9);
             }
             else
             {
-                if (g_GameManager.HasUnlockedPhantomAndMaxClears() == 0)
+                if (!g_GameManager.HasUnlockedPhantasmAndMaxClears())
                 {
-                    this->vmHead[161].SetInterrupt(9);
+                    this->vms[161].SetInterrupt(9);
                 }
                 else
                 {
-                    this->vmHead[g_Supervisor.cfg.defaultDifficulty + 158].SetInterrupt(9);
+                    this->vms[g_Supervisor.cfg.defaultDifficulty + 158].SetInterrupt(9);
                 }
             }
-            this->vmHead[72].active = 0;
-            this->vmHead[73].active = 0;
-            this->vmHead[71].active = 0;
-            this->vmHead[80].active = 0;
-            this->vmHead[83].active = 0;
-            this->vmHead[75].active = 0;
-            this->vmHead[76].active = 0;
-            this->vmHead[74].active = 0;
-            this->vmHead[81].active = 0;
-            this->vmHead[84].active = 0;
-            this->vmHead[78].active = 0;
-            this->vmHead[79].active = 0;
-            this->vmHead[77].active = 0;
-            this->vmHead[82].active = 0;
-            this->vmHead[85].active = 0;
+            this->vms[72].active = 0;
+            this->vms[73].active = 0;
+            this->vms[71].active = 0;
+            this->vms[80].active = 0;
+            this->vms[83].active = 0;
+            this->vms[75].active = 0;
+            this->vms[76].active = 0;
+            this->vms[74].active = 0;
+            this->vms[81].active = 0;
+            this->vms[84].active = 0;
+            this->vms[78].active = 0;
+            this->vms[79].active = 0;
+            this->vms[77].active = 0;
+            this->vms[82].active = 0;
+            this->vms[85].active = 0;
             this->cursor = g_GameManager.shotType;
-            if (g_Supervisor.cfg.defaultDifficulty == 4)
+            if (g_Supervisor.cfg.defaultDifficulty == DIFF_EXTRA)
             {
-                while (g_GameManager.HasReachedMaxClears(this->cursor +
-                                                         (u32)g_GameManager.character * 2) == 0)
+                while (!g_GameManager.HasReachedMaxClearsAnyDifficulty(
+                    this->cursor + (u32)g_GameManager.character * 2))
                 {
                     this->cursor++;
-                    if (this->cursor >= 2)
+                    if (this->cursor >= MENU_CURSOR_SELECTSHOTTYPE_COUNT)
                     {
-                        this->cursor = this->cursor - 2;
+                        this->cursor -= MENU_CURSOR_SELECTSHOTTYPE_COUNT;
                     }
                 }
             }
-            else if (g_Supervisor.cfg.defaultDifficulty == 5)
+            else if (g_Supervisor.cfg.defaultDifficulty == DIFF_PHANTASM)
             {
-                while (g_GameManager.HasUnlockedPhantom(this->cursor +
-                                                        (u32)g_GameManager.character * 2) == 0)
+                while (!g_GameManager.HasUnlockedPhantasm(this->cursor +
+                                                          (u32)g_GameManager.character * 2))
                 {
                     this->cursor++;
-                    if (this->cursor >= 2)
+                    if (this->cursor >= MENU_CURSOR_SELECTSHOTTYPE_COUNT)
                     {
-                        this->cursor = this->cursor - 2;
+                        this->cursor -= MENU_CURSOR_SELECTSHOTTYPE_COUNT;
                     }
                 }
             }
             switch (g_GameManager.character)
             {
             case CHAR_REIMU:
-                this->vmHead[72].active = 1;
-                this->vmHead[73].active = 1;
-                this->vmHead[71].active = 1;
-                g_AnmManager->SetActiveSprite(&this->vmHead[73 - this->cursor],
-                                              this->vmHead[73 - this->cursor].baseSpriteIdx + 1);
-                g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 72],
-                                              (i32)this->vmHead[this->cursor + 72].baseSpriteIdx);
+                this->vms[72].active = 1;
+                this->vms[73].active = 1;
+                this->vms[71].active = 1;
+                g_AnmManager->SetActiveSprite(&this->vms[73 - this->cursor],
+                                              this->vms[73 - this->cursor].baseSpriteIdx + 1);
+                g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 72],
+                                              (i32)this->vms[this->cursor + 72].baseSpriteIdx);
                 break;
             case CHAR_MARISA:
-                this->vmHead[75].active = 1;
-                this->vmHead[76].active = 1;
-                this->vmHead[74].active = 1;
-                g_AnmManager->SetActiveSprite(&this->vmHead[76 - this->cursor],
-                                              this->vmHead[76 - this->cursor].baseSpriteIdx + 1);
-                g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 75],
-                                              (i32)this->vmHead[this->cursor + 75].baseSpriteIdx);
+                this->vms[75].active = 1;
+                this->vms[76].active = 1;
+                this->vms[74].active = 1;
+                g_AnmManager->SetActiveSprite(&this->vms[76 - this->cursor],
+                                              this->vms[76 - this->cursor].baseSpriteIdx + 1);
+                g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 75],
+                                              (i32)this->vms[this->cursor + 75].baseSpriteIdx);
                 break;
             case CHAR_SAKUYA:
-                this->vmHead[78].active = 1;
-                this->vmHead[79].active = 1;
-                this->vmHead[77].active = 1;
-                g_AnmManager->SetActiveSprite(&this->vmHead[79 - this->cursor],
-                                              this->vmHead[79 - this->cursor].baseSpriteIdx + 1);
-                g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 78],
-                                              (i32)this->vmHead[this->cursor + 78].baseSpriteIdx);
+                this->vms[78].active = 1;
+                this->vms[79].active = 1;
+                this->vms[77].active = 1;
+                g_AnmManager->SetActiveSprite(&this->vms[79 - this->cursor],
+                                              this->vms[79 - this->cursor].baseSpriteIdx + 1);
+                g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 78],
+                                              (i32)this->vms[this->cursor + 78].baseSpriteIdx);
                 break;
             }
-            this->menuSubState = 0;
+            this->menuSubState = MENU_SUBSTATE_SELECT_INIT;
             this->inputDelayTimer = 0;
         }
         if (this->isPracticeMode)
         {
-            SetGameState(STATE_SELECT_PRACTICE_STAGE);
+            SetMenuState(MENU_STATE_SELECT_PRACTICE_STAGE);
             this->isPracticeMode = 0;
             this->cursor = g_GameManager.currentStage - 1;
             return CHAIN_CALLBACK_RESULT_CONTINUE;
         }
         if (this->stateTimer == 30)
         {
-            this->menuSubState = 1;
+            this->menuSubState = MENU_SUBSTATE_SELECT_INPUT;
         }
         break;
-    case 1:
+    case MENU_SUBSTATE_SELECT_INPUT:
         // The Pointdevice / Legacy choice sits on top of the shot type screen.
         if (PointDevice::IsModeSelectOpen())
         {
@@ -1604,51 +1587,51 @@ u32 MainMenu::OnUpdateSelectShotType()
             }
             modeChosen = true;
         }
-        if (!modeChosen && MoveCursorVertical(2))
+        if (!modeChosen && MoveCursorVertical(MENU_CURSOR_SELECTSHOTTYPE_COUNT))
         {
-            if (g_Supervisor.cfg.defaultDifficulty == 4)
+            if (g_Supervisor.cfg.defaultDifficulty == DIFF_EXTRA)
             {
-                while (g_GameManager.HasReachedMaxClears(this->cursor +
-                                                         (u32)g_GameManager.character * 2) == 0)
+                while (!g_GameManager.HasReachedMaxClearsAnyDifficulty(
+                    this->cursor + (u32)g_GameManager.character * 2))
                 {
                     this->cursor++;
-                    if (this->cursor >= 2)
+                    if (this->cursor >= MENU_CURSOR_SELECTSHOTTYPE_COUNT)
                     {
-                        this->cursor = this->cursor - 2;
+                        this->cursor -= MENU_CURSOR_SELECTSHOTTYPE_COUNT;
                     }
                 }
             }
-            else if (g_Supervisor.cfg.defaultDifficulty == 5)
+            else if (g_Supervisor.cfg.defaultDifficulty == DIFF_PHANTASM)
             {
-                while (g_GameManager.HasUnlockedPhantom(this->cursor +
-                                                        (u32)g_GameManager.character * 2) == 0)
+                while (g_GameManager.HasUnlockedPhantasm(this->cursor +
+                                                         (u32)g_GameManager.character * 2) == 0)
                 {
                     this->cursor++;
-                    if (this->cursor >= 2)
+                    if (this->cursor >= MENU_CURSOR_SELECTSHOTTYPE_COUNT)
                     {
-                        this->cursor = this->cursor - 2;
+                        this->cursor -= MENU_CURSOR_SELECTSHOTTYPE_COUNT;
                     }
                 }
             }
             switch (g_GameManager.character)
             {
             case CHAR_REIMU:
-                g_AnmManager->SetActiveSprite(&this->vmHead[73 - this->cursor],
-                                              this->vmHead[73 - this->cursor].baseSpriteIdx + 1);
-                g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 72],
-                                              (i32)this->vmHead[this->cursor + 72].baseSpriteIdx);
+                g_AnmManager->SetActiveSprite(&this->vms[73 - this->cursor],
+                                              this->vms[73 - this->cursor].baseSpriteIdx + 1);
+                g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 72],
+                                              (i32)this->vms[this->cursor + 72].baseSpriteIdx);
                 break;
             case CHAR_MARISA:
-                g_AnmManager->SetActiveSprite(&this->vmHead[76 - this->cursor],
-                                              this->vmHead[76 - this->cursor].baseSpriteIdx + 1);
-                g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 75],
-                                              (i32)this->vmHead[this->cursor + 75].baseSpriteIdx);
+                g_AnmManager->SetActiveSprite(&this->vms[76 - this->cursor],
+                                              this->vms[76 - this->cursor].baseSpriteIdx + 1);
+                g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 75],
+                                              (i32)this->vms[this->cursor + 75].baseSpriteIdx);
                 break;
             case CHAR_SAKUYA:
-                g_AnmManager->SetActiveSprite(&this->vmHead[79 - this->cursor],
-                                              this->vmHead[79 - this->cursor].baseSpriteIdx + 1);
-                g_AnmManager->SetActiveSprite(&this->vmHead[this->cursor + 78],
-                                              (i32)this->vmHead[this->cursor + 78].baseSpriteIdx);
+                g_AnmManager->SetActiveSprite(&this->vms[79 - this->cursor],
+                                              this->vms[79 - this->cursor].baseSpriteIdx + 1);
+                g_AnmManager->SetActiveSprite(&this->vms[this->cursor + 78],
+                                              (i32)this->vms[this->cursor + 78].baseSpriteIdx);
                 break;
             }
         }
@@ -1666,58 +1649,58 @@ u32 MainMenu::OnUpdateSelectShotType()
                 g_GameManager.difficulty = g_Supervisor.cfg.defaultDifficulty;
                 if (g_GameManager.difficulty < DIFF_EXTRA)
                 {
-                    g_GameManager.currentStage = 0;
+                    g_GameManager.currentStage = DUMMYSTAGE;
                 }
                 else
                 {
-                    g_GameManager.currentStage = g_GameManager.difficulty + DIFF_HARD;
+                    g_GameManager.currentStage = g_GameManager.difficulty + 2;
                 }
                 PointDevice::OnGameLaunch();
-                g_Supervisor.curState = 2;
-                g_GameManager.SetReplay(0);
+                g_Supervisor.curState = SUPERVISOR_STATE_GAMEMANAGER;
+                g_GameManager.SetIsReplay(FALSE);
                 g_Supervisor.StopAudio();
                 while (g_SoundPlayer.ProcessQueues())
                     ;
                 return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
             }
             this->cursor = 0;
-            SetGameState(STATE_SELECT_PRACTICE_STAGE);
+            SetMenuState(MENU_STATE_SELECT_PRACTICE_STAGE);
             return CHAIN_CALLBACK_RESULT_EXECUTE_AGAIN;
         }
         if (WAS_PRESSED_RAW(TH_BUTTON_RETURNMENU))
         {
             g_SoundPlayer.PlaySoundByIdx(SOUND_BACK, 0);
             g_GameManager.shotType = this->cursor;
-            if (this->gameState != STATE_EXTRA_SELECT_SHOTTYPE)
+            if (this->menuState != MENU_STATE_EXTRA_SELECT_SHOTTYPE)
             {
                 if (!g_GameManager.practice)
                 {
-                    SetGameState(STATE_NORMAL_SELECT_CHARACTER);
+                    SetMenuState(MENU_STATE_NORMAL_SELECT_CHARACTER);
                 }
                 else
                 {
-                    SetGameState(STATE_PRACTICE_SELECT_CHARACTER);
+                    SetMenuState(MENU_STATE_PRACTICE_SELECT_CHARACTER);
                 }
             }
             else
             {
-                SetGameState(STATE_EXTRA_SELECT_CHARACTER);
+                SetMenuState(MENU_STATE_EXTRA_SELECT_CHARACTER);
             }
-            this->vmHead[72].active = 1;
-            this->vmHead[73].active = 1;
-            this->vmHead[71].active = 1;
-            this->vmHead[80].active = 1;
-            this->vmHead[83].active = 1;
-            this->vmHead[75].active = 1;
-            this->vmHead[76].active = 1;
-            this->vmHead[74].active = 1;
-            this->vmHead[81].active = 1;
-            this->vmHead[84].active = 1;
-            this->vmHead[78].active = 1;
-            this->vmHead[79].active = 1;
-            this->vmHead[77].active = 1;
-            this->vmHead[82].active = 1;
-            this->vmHead[85].active = 1;
+            this->vms[72].active = 1;
+            this->vms[73].active = 1;
+            this->vms[71].active = 1;
+            this->vms[80].active = 1;
+            this->vms[83].active = 1;
+            this->vms[75].active = 1;
+            this->vms[76].active = 1;
+            this->vms[74].active = 1;
+            this->vms[81].active = 1;
+            this->vms[84].active = 1;
+            this->vms[78].active = 1;
+            this->vms[79].active = 1;
+            this->vms[77].active = 1;
+            this->vms[82].active = 1;
+            this->vms[85].active = 1;
             return CHAIN_CALLBACK_RESULT_EXECUTE_AGAIN;
         }
         break;
@@ -1730,78 +1713,78 @@ u32 MainMenu::OnUpdateSelectShotType()
 
 u32 MainMenu::OnUpdateSelectPracticeStage()
 {
-    i32 local_8;
+    i32 allowedStages;
 
     switch (this->menuSubState)
     {
-    case 0:
+    case MENU_SUBSTATE_SELECT_INIT:
         if (this->stateTimer == 0)
         {
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 18);
-            this->vmHead[72].active = 0;
-            this->vmHead[73].active = 0;
-            this->vmHead[71].active = 0;
-            this->vmHead[80].active = 0;
-            this->vmHead[83].active = 0;
-            this->vmHead[75].active = 0;
-            this->vmHead[76].active = 0;
-            this->vmHead[74].active = 0;
-            this->vmHead[81].active = 0;
-            this->vmHead[84].active = 0;
-            this->vmHead[78].active = 0;
-            this->vmHead[79].active = 0;
-            this->vmHead[77].active = 0;
-            this->vmHead[82].active = 0;
-            this->vmHead[85].active = 0;
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 18);
+            this->vms[72].active = 0;
+            this->vms[73].active = 0;
+            this->vms[71].active = 0;
+            this->vms[80].active = 0;
+            this->vms[83].active = 0;
+            this->vms[75].active = 0;
+            this->vms[76].active = 0;
+            this->vms[74].active = 0;
+            this->vms[81].active = 0;
+            this->vms[84].active = 0;
+            this->vms[78].active = 0;
+            this->vms[79].active = 0;
+            this->vms[77].active = 0;
+            this->vms[82].active = 0;
+            this->vms[85].active = 0;
             switch (g_GameManager.character)
             {
             case CHAR_REIMU:
-                this->vmHead[72].active = 1;
-                this->vmHead[73].active = 1;
-                this->vmHead[71].active = 1;
+                this->vms[72].active = 1;
+                this->vms[73].active = 1;
+                this->vms[71].active = 1;
                 break;
             case CHAR_MARISA:
-                this->vmHead[75].active = 1;
-                this->vmHead[76].active = 1;
-                this->vmHead[74].active = 1;
+                this->vms[75].active = 1;
+                this->vms[76].active = 1;
+                this->vms[74].active = 1;
                 break;
             case CHAR_SAKUYA:
-                this->vmHead[78].active = 1;
-                this->vmHead[79].active = 1;
-                this->vmHead[77].active = 1;
+                this->vms[78].active = 1;
+                this->vms[79].active = 1;
+                this->vms[77].active = 1;
                 break;
             }
-            this->menuSubState = 0;
+            this->menuSubState = MENU_SUBSTATE_SELECT_INIT;
             this->inputDelayTimer = 0;
             g_GameManager.practice = 1;
         }
         if (this->stateTimer == 30)
         {
-            this->menuSubState = 1;
+            this->menuSubState = MENU_SUBSTATE_SELECT_INPUT;
         }
         break;
-    case 1:
-        local_8 = g_GameManager.clrd[g_GameManager.character * 2 + g_GameManager.shotType]
-                      .difficultyClearedWithoutRetries[g_Supervisor.cfg.defaultDifficulty];
-        if (local_8 < 0)
+    case MENU_SUBSTATE_SELECT_INPUT:
+        allowedStages = g_GameManager.clrd[g_GameManager.character * 2 + g_GameManager.shotType]
+                            .difficultyClearedWithoutRetries[g_Supervisor.cfg.defaultDifficulty];
+        if (allowedStages < 0)
         {
-            local_8 = 1;
+            allowedStages = 1;
         }
-        else if (local_8 >= 99)
+        else if (allowedStages >= 99)
         {
-            local_8 = 6;
+            allowedStages = 6;
         }
-        if (this->cursor >= local_8)
+        if (this->cursor >= allowedStages)
         {
             this->cursor = 0;
         }
-        MoveCursorVertical(local_8);
+        MoveCursorVertical(allowedStages);
         if (WAS_PRESSED_RAW(TH_BUTTON_SELECTMENU))
         {
             g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
             g_GameManager.difficulty = g_Supervisor.cfg.defaultDifficulty;
             g_GameManager.currentStage = this->cursor;
-            g_Supervisor.curState = 2;
+            g_Supervisor.curState = SUPERVISOR_STATE_GAMEMANAGER;
 
             i32 idk = 0;
             g_GameManager.replay = idk;
@@ -1814,22 +1797,22 @@ u32 MainMenu::OnUpdateSelectPracticeStage()
         {
             g_SoundPlayer.PlaySoundByIdx(SOUND_BACK, 0);
             this->cursor = g_GameManager.shotType;
-            SetGameState(STATE_NORMAL_SELECT_SHOTTYPE);
-            this->vmHead[72].active = 1;
-            this->vmHead[73].active = 1;
-            this->vmHead[71].active = 1;
-            this->vmHead[80].active = 1;
-            this->vmHead[83].active = 1;
-            this->vmHead[75].active = 1;
-            this->vmHead[76].active = 1;
-            this->vmHead[74].active = 1;
-            this->vmHead[81].active = 1;
-            this->vmHead[84].active = 1;
-            this->vmHead[78].active = 1;
-            this->vmHead[79].active = 1;
-            this->vmHead[77].active = 1;
-            this->vmHead[82].active = 1;
-            this->vmHead[85].active = 1;
+            SetMenuState(MENU_STATE_NORMAL_SELECT_SHOTTYPE);
+            this->vms[72].active = 1;
+            this->vms[73].active = 1;
+            this->vms[71].active = 1;
+            this->vms[80].active = 1;
+            this->vms[83].active = 1;
+            this->vms[75].active = 1;
+            this->vms[76].active = 1;
+            this->vms[74].active = 1;
+            this->vms[81].active = 1;
+            this->vms[84].active = 1;
+            this->vms[78].active = 1;
+            this->vms[79].active = 1;
+            this->vms[77].active = 1;
+            this->vms[82].active = 1;
+            this->vms[85].active = 1;
             return CHAIN_CALLBACK_RESULT_EXECUTE_AGAIN;
         }
         break;
@@ -1848,46 +1831,46 @@ bool ReplayFileMatches(const std::string &name)
 
 u32 MainMenu::OnUpdateSelectReplay()
 {
-    ReplayFile *file;
-    i32 local_10;
+    ReplayFile *replayFile;
+    i32 replayIdx;
     i32 i;
 
     switch (this->menuSubState)
     {
-    case 0:
+    case MENU_SUBSTATE_SELECT_INIT:
         if (this->stateTimer == 0)
         {
-            if (this->prevGameState != STATE_SELECT_REPLAY &&
+            if (this->prevMenuState != MENU_STATE_SELECT_REPLAY &&
                 g_AnmManager->LoadSurface(0, "data/title/select00.jpg") != ZUN_SUCCESS)
             {
                 return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
             }
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 14);
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 14);
             this->cursor = 0;
-            this->menuSubState = 0;
+            this->menuSubState = MENU_SUBSTATE_SELECT_INIT;
             this->inputDelayTimer = 0;
-            this->cursorVm = NULL;
-            local_10 = 0;
+            this->curDescriptionVm = NULL;
+            replayIdx = 0;
             for (i = 0; i < 15; i++)
             {
                 char filename[32];
                 snprintf(filename, sizeof(filename), "th7_%.2d.rpy", i + 1);
                 std::string replayPath = (fs::path(FileSystem::GetPrefPath("replay")) / filename).string();
-                file = (ReplayFile *)FileSystem::OpenFile(replayPath.c_str(), 1);
-                if (!file)
+                replayFile = (ReplayFile *)FileSystem::OpenFile(replayPath.c_str(), 1);
+                if (!replayFile)
                 {
                     continue;
                 }
 
-                file = ReplayManager::ValidateReplayData(file, g_LastFileSize);
-                if (file)
+                replayFile = ReplayManager::ValidateReplayData(replayFile, g_LastFileSize);
+                if (replayFile)
                 {
-                    this->replays[local_10] = *file;
-                    SDL_strlcpy(this->replayFilenames[local_10], replayPath.c_str(),
-                                sizeof(this->replayFilenames[local_10]));
-                    sprintf(this->replayLabels[local_10], "No.%.2d", i + 1);
-                    local_10++;
-                    ReplayManager::FreeReplay(file);
+                    this->replays[replayIdx] = *replayFile;
+                    SDL_strlcpy(this->replayFilenames[replayIdx], replayPath.c_str(),
+                                sizeof(this->replayFilenames[replayIdx]));
+                    sprintf(this->replayLabels[replayIdx], "No.%.2d", i + 1);
+                    replayIdx++;
+                    ReplayManager::FreeReplay(replayFile);
                 }
             }
 
@@ -1906,29 +1889,29 @@ u32 MainMenu::OnUpdateSelectReplay()
                 {
                     continue;
                 }
-                if (local_10 >= 45)
+                if (replayIdx >= 45)
                 {
                     break;
                 }
-                file = (ReplayFile *)FileSystem::OpenFile(
+                replayFile = (ReplayFile *)FileSystem::OpenFile(
                     (FileSystem::GetPrefPath("replay") + "/" + filename).c_str(), 1);
-                if (!file)
+                if (!replayFile)
                 {
                     continue;
                 }
-                file = ReplayManager::ValidateReplayData(file, g_LastFileSize);
-                if (file)
+                replayFile = ReplayManager::ValidateReplayData(replayFile, g_LastFileSize);
+                if (replayFile)
                 {
-                    this->replays[local_10] = *file;
-                    SDL_strlcpy(this->replayFilenames[local_10],
+                    this->replays[replayIdx] = *replayFile;
+                    SDL_strlcpy(this->replayFilenames[replayIdx],
                                 (FileSystem::GetPrefPath("replay") + "/" + filename).c_str(),
-                                sizeof(this->replayFilenames[local_10]));
-                    sprintf(this->replayLabels[local_10], "User ");
-                    ReplayManager::FreeReplay(file);
-                    local_10++;
+                                sizeof(this->replayFilenames[replayIdx]));
+                    sprintf(this->replayLabels[replayIdx], "User ");
+                    ReplayManager::FreeReplay(replayFile);
+                    replayIdx++;
                 }
             }
-            this->replayFilesNum = local_10;
+            this->replayFilesNum = replayIdx;
             this->replayPage = 0;
         }
         if (this->stateTimer >= 30)
@@ -1939,7 +1922,7 @@ u32 MainMenu::OnUpdateSelectReplay()
         break;
     case 1:
         MoveCursorVertical(this->replayFilesNum);
-        if (15 < this->replayFilesNum)
+        if (this->replayFilesNum > 15)
         {
             if (WAS_PRESSED_RAW_AND_IS_EIGHTH(TH_BUTTON_LEFT))
             {
@@ -1975,8 +1958,8 @@ u32 MainMenu::OnUpdateSelectReplay()
 
             g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT, 0);
             this->menuSubState = 2;
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 15);
-            this->vmHead[this->chosenReplay % 15 + 135].SetInterrupt(17);
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 15);
+            this->vms[this->chosenReplay % 15 + 135].SetInterrupt(17);
             this->currentReplay =
                 (ReplayFile *)FileSystem::OpenFile(this->replayFilenames[this->chosenReplay], 1);
             this->currentReplay =
@@ -1998,7 +1981,7 @@ u32 MainMenu::OnUpdateSelectReplay()
             g_SoundPlayer.PlaySoundByIdx(SOUND_BACK, 0);
             this->menuSubState = 4;
             this->inputDelayTimer = 0;
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 16);
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 16);
         }
         break;
     case 2:
@@ -2014,7 +1997,7 @@ u32 MainMenu::OnUpdateSelectReplay()
                 }
             }
         }
-        else if (0 < i)
+        else if (i > 0)
         {
             while (!this->replays[this->chosenReplay].head.stageReplayDataOffsets[this->cursor])
             {
@@ -2028,14 +2011,14 @@ u32 MainMenu::OnUpdateSelectReplay()
         this->selectedStage = this->cursor;
         if (WAS_PRESSED_RAW(TH_BUTTON_SELECTMENU))
         {
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 19);
-            this->vmHead[this->chosenReplay % 15 + 135].SetInterrupt(17);
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 19);
+            this->vms[this->chosenReplay % 15 + 135].SetInterrupt(17);
             this->menuSubState = 3;
             this->cursor = 0;
-            this->vmHead[158].pendingInterrupt = 21;
-            this->vmHead[159].pendingInterrupt = 21;
-            this->vmHead[160].pendingInterrupt = 21;
-            this->vmHead[this->cursor + 158].pendingInterrupt = 20;
+            this->vms[158].pendingInterrupt = 21;
+            this->vms[159].pendingInterrupt = 21;
+            this->vms[160].pendingInterrupt = 21;
+            this->vms[this->cursor + 158].pendingInterrupt = 20;
             break;
         }
         if (WAS_PRESSED_RAW(TH_BUTTON_RETURNMENU))
@@ -2044,7 +2027,7 @@ u32 MainMenu::OnUpdateSelectReplay()
             this->currentReplay = NULL;
             this->menuSubState = 1;
             this->stateTimer = 0;
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 14);
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 14);
             this->cursor = this->chosenReplay;
             break;
         }
@@ -2053,14 +2036,14 @@ u32 MainMenu::OnUpdateSelectReplay()
         i = MoveCursorVertical(3);
         if (i != 0)
         {
-            this->vmHead[158].pendingInterrupt = 21;
-            this->vmHead[159].pendingInterrupt = 21;
-            this->vmHead[160].pendingInterrupt = 21;
-            this->vmHead[this->cursor + 158].pendingInterrupt = 20;
+            this->vms[158].pendingInterrupt = 21;
+            this->vms[159].pendingInterrupt = 21;
+            this->vms[160].pendingInterrupt = 21;
+            this->vms[this->cursor + 158].pendingInterrupt = 20;
         }
         if (WAS_PRESSED_RAW(TH_BUTTON_SELECTMENU))
         {
-            g_GameManager.SetReplay(1);
+            g_GameManager.SetIsReplay(TRUE);
             SDL_strlcpy(g_GameManager.replayFilename, this->replayFilenames[this->chosenReplay],
                         sizeof(g_GameManager.replayFilename));
             g_GameManager.difficulty = this->currentReplay->data.difficulty;
@@ -2069,8 +2052,9 @@ u32 MainMenu::OnUpdateSelectReplay()
             g_GameManager.shotTypeAndCharacter = this->currentReplay->data.shotType;
             ReplayManager::FreeReplay(this->currentReplay);
             this->currentReplay = NULL;
-            g_GameManager.currentStage = g_GameManager.difficulty >= 5 ? 7 : this->selectedStage;
-            g_Supervisor.curState = 2;
+            g_GameManager.currentStage =
+                g_GameManager.difficulty >= DIFF_PHANTASM ? EXTRASTAGE : this->selectedStage;
+            g_Supervisor.curState = SUPERVISOR_STATE_GAMEMANAGER;
             g_GameManager.replayStage = (u8)this->cursor;
             g_Supervisor.StopAudio();
             while (g_SoundPlayer.ProcessQueues())
@@ -2082,15 +2066,15 @@ u32 MainMenu::OnUpdateSelectReplay()
             this->menuSubState = 2;
             this->stateTimer = 0;
             this->cursor = this->selectedStage;
-            g_AnmManager->SetInterruptActiveVms(this->vmHead, this->vmCount, 15);
-            this->vmHead[this->chosenReplay % 15 + 135].SetInterrupt(17);
+            g_AnmManager->SetInterruptActiveVms(this->vms, this->vmCount, 15);
+            this->vms[this->chosenReplay % 15 + 135].SetInterrupt(17);
             break;
         }
         break;
     case 4:
         if (this->inputDelayTimer >= 30)
         {
-            SetGameState(STATE_PRE_INPUT);
+            SetMenuState(MENU_STATE_PRE_INPUT);
             this->cursor = 3;
             return CHAIN_CALLBACK_RESULT_CONTINUE;
         }
@@ -2108,7 +2092,7 @@ i32 MainMenu::DrawReplayMenu()
     i32 i;
     AnmVm *vm;
 
-    vm = &this->vmHead[134];
+    vm = &this->vms[134];
     AsciiManager::AddFormatText(&g_AsciiManager, &vm->pos, "No.   Name       Date  Player   Rank");
     replayAmount = this->chosenReplay - this->chosenReplay % 15;
     for (i = replayAmount + 15; replayAmount < i; replayAmount++)
@@ -2136,14 +2120,14 @@ i32 MainMenu::DrawReplayMenu()
     if ((this->menuSubState == 2 || this->menuSubState == 3) && this->currentReplay != NULL)
     {
         g_AsciiManager.color = 0xffffffff;
-        g_AsciiManager.isSelected = 0;
-        vm = &this->vmHead[133];
+        g_AsciiManager.isSelected = FALSE;
+        vm = &this->vms[133];
         AsciiManager::AddFormatText(&g_AsciiManager, &vm->pos, "       %2.3f%%",
                                     (f64)this->currentReplay->data.slowdownRate);
-        vm = &this->vmHead[150];
+        vm = &this->vms[150];
         AsciiManager::AddFormatText(&g_AsciiManager, &vm->pos, "Stage    LastScore");
         replayAmount = this->chosenReplay - this->chosenReplay % 15;
-        for (i = 0; i < 7; i++, replayAmount++)
+        for (i = 0; i < ARRAY_SIZE_SIGNED(g_StageReplayStrings); i++, replayAmount++)
         {
             vm++;
             if (this->menuSubState != 3)
@@ -2200,34 +2184,34 @@ i32 MainMenu::DrawReplayMenu()
         }
     }
     g_AsciiManager.color = 0xffffffff;
-    g_AsciiManager.isSelected = 0;
+    g_AsciiManager.isSelected = FALSE;
     return 1;
 }
 
 i32 MainMenu::DrawPracticeMenu()
 {
-    ZunVec3 local_1c;
-    i32 local_10;
+    ZunVec3 textPos;
+    i32 cleared;
     i32 i;
     AnmVm *vm;
 
     g_AsciiManager.color = 0xffffffff;
-    g_AsciiManager.isSelected = 0;
-    vm = &this->vmHead[131];
+    g_AsciiManager.isSelected = FALSE;
+    vm = &this->vms[131];
     AsciiManager::AddFormatText(&g_AsciiManager, &vm->pos, "Stage    HI-Score");
-    local_1c = vm->pos;
-    local_1c.y += 16.0f;
-    local_10 = g_GameManager.clrd[g_GameManager.character * 2 + g_GameManager.shotType]
-                   .difficultyClearedWithoutRetries[g_Supervisor.cfg.defaultDifficulty];
+    textPos = vm->pos;
+    textPos.y += 16.0f;
+    cleared = g_GameManager.clrd[g_GameManager.character * 2 + g_GameManager.shotType]
+                  .difficultyClearedWithoutRetries[g_Supervisor.cfg.defaultDifficulty];
 
-    for (i = 0; i < 6; i++)
+    for (i = 0; i < ARRAY_SIZE_SIGNED(g_StagePracticeStrings); i++)
     {
         g_AsciiManager.isSelected = IsSelected(i);
         if (i == this->cursor)
         {
             g_AsciiManager.color = 0xffffffff;
         }
-        else if (i < local_10)
+        else if (i < cleared)
         {
             g_AsciiManager.color = 0xffa0a0a0;
         }
@@ -2235,7 +2219,7 @@ i32 MainMenu::DrawPracticeMenu()
         {
             g_AsciiManager.color = 0xff404040;
         }
-        AsciiManager::AddFormatText(&g_AsciiManager, &local_1c, "%s %9d0 (%3d)",
+        AsciiManager::AddFormatText(&g_AsciiManager, &textPos, "%s %9d0 (%3d)",
                                     g_StagePracticeStrings[i],
                                     g_GameManager
                                         .pscr[g_GameManager.character * 2 + g_GameManager.shotType]
@@ -2245,10 +2229,10 @@ i32 MainMenu::DrawPracticeMenu()
                                         .pscr[g_GameManager.character * 2 + g_GameManager.shotType]
                                              [i][g_Supervisor.cfg.defaultDifficulty]
                                         .playCount);
-        local_1c.y += 16.0f;
+        textPos.y += 16.0f;
     }
     g_AsciiManager.color = 0xffffffff;
-    g_AsciiManager.isSelected = 0;
+    g_AsciiManager.isSelected = FALSE;
     return 1;
 }
 
@@ -2321,42 +2305,42 @@ i32 MainMenu::MoveCursorHorizontal(i32 max)
 u32 MainMenu::OnDraw(MainMenu *arg)
 {
     ZunVec3 savedPos;
-    AnmVm *local_c;
+    AnmVm *vm;
     i32 i;
 
     g_AnmManager->SetTexture(0);
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
-    switch (arg->gameState)
+    switch (arg->menuState)
     {
-    case STATE_SELECT_REPLAY:
+    case MENU_STATE_SELECT_REPLAY:
         arg->DrawReplayMenu();
         break;
-    case STATE_SELECT_PRACTICE_STAGE:
+    case MENU_STATE_SELECT_PRACTICE_STAGE:
         arg->DrawPracticeMenu();
         break;
     }
-    local_c = arg->vmHead;
-    for (i = 0; i < arg->vmCount; i++, local_c++)
+    vm = arg->vms;
+    for (i = 0; i < arg->vmCount; i++, vm++)
     {
-        if (g_AnmManager->ShouldDraw(local_c))
+        if (g_AnmManager->ShouldDraw(vm))
         {
-            savedPos = local_c->pos;
-            ZunVec3 drawPos = local_c->prevPos.Lerp(local_c->pos, g_RenderAlpha);
-            local_c->pos = drawPos + local_c->offset;
-            if (local_c->rotation.z != 0.0f)
+            savedPos = vm->pos;
+            ZunVec3 drawPos = vm->prevPos.Lerp(vm->pos, g_RenderAlpha);
+            vm->pos = drawPos + vm->offset;
+            if (vm->rotation.z != 0.0f)
             {
-                g_AnmManager->Draw(local_c);
+                g_AnmManager->Draw(vm);
             }
             else
             {
-                g_AnmManager->DrawNoRotation(local_c);
+                g_AnmManager->DrawNoRotation(vm);
             }
-            local_c->pos = savedPos;
+            vm->pos = savedPos;
         }
     }
-    if (arg->cursorVm)
+    if (arg->curDescriptionVm)
     {
-        g_AnmManager->DrawInterpNoRotation(arg->cursorVm);
+        g_AnmManager->DrawInterpNoRotation(arg->curDescriptionVm);
     }
     return CHAIN_CALLBACK_RESULT_CONTINUE;
 }
@@ -2364,12 +2348,12 @@ u32 MainMenu::OnDraw(MainMenu *arg)
 ZunResult MainMenu::ActualAddedCallback()
 {
     i32 i;
-    ZunRect local_34;
-    ZunColor local_24;
-    ZunColor local_20;
-    ZunRect local_1c;
+    ZunRect fadeOutRect;
+    ZunColor fadeOutColor;
+    ZunColor fadeInColor;
+    ZunRect fadeInRect;
     i32 frameCount;
-    ScoreDat *local_8;
+    ScoreDat *scoreDat;
 
     SAFE_DELETE(g_GameManager.defaultCfg);
     g_GameManager.defaultCfg = new GameConfiguration;
@@ -2385,11 +2369,11 @@ ZunResult MainMenu::ActualAddedCallback()
     {
         g_GameManager.replay = 0;
     }
-    local_8 = ResultScreen::OpenScore(FileSystem::GetPrefPath("score.dat").c_str());
-    ResultScreen::ParseClrd(local_8, g_GameManager.clrd);
-    ResultScreen::ParsePscr(local_8, &g_GameManager.pscr[0][0][0]);
-    ResultScreen::ParseCatk(local_8, g_GameManager.catk);
-    ResultScreen::ReleaseScoreDat(local_8);
+    scoreDat = ResultScreen::OpenScore(FileSystem::GetPrefPath("score.dat").c_str());
+    ResultScreen::ParseClrd(scoreDat, g_GameManager.clrd);
+    ResultScreen::ParsePscr(scoreDat, &g_GameManager.pscr[0][0][0]);
+    ResultScreen::ParseCatk(scoreDat, g_GameManager.catk);
+    ResultScreen::ReleaseScoreDat(scoreDat);
     if (g_GameManager.plst.gameHours < 7)
     {
         g_GameManager.maxRetries = 3;
@@ -2402,7 +2386,7 @@ ZunResult MainMenu::ActualAddedCallback()
     {
         g_GameManager.maxRetries = 5;
     }
-    if (!g_GameManager.phantasmUnlocked && g_GameManager.HasUnlockedPhantomAndMaxClears())
+    if (!g_GameManager.phantasmUnlocked && g_GameManager.HasUnlockedPhantasmAndMaxClears())
     {
         frameCount = 0;
         g_AnmManager->LoadSurface(0, "data/title/phantasm.jpg");
@@ -2421,28 +2405,28 @@ ZunResult MainMenu::ActualAddedCallback()
             g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
             if (frameCount < 60)
             {
-                local_1c.left = 0.0f;
-                local_1c.top = 0.0f;
-                local_1c.right = 639.0f;
-                local_1c.bottom = 479.0f;
-                local_20.bytes.a = (60 - frameCount) * 255 / 60;
-                local_20.bytes.r = local_20.bytes.g = local_20.bytes.b = 0;
-                ScreenEffect::DrawSquare(&local_1c, local_20.color);
+                fadeInRect.left = 0.0f;
+                fadeInRect.top = 0.0f;
+                fadeInRect.right = 639.0f;
+                fadeInRect.bottom = 479.0f;
+                fadeInColor.bytes.a = (60 - frameCount) * 255 / 60;
+                fadeInColor.bytes.r = fadeInColor.bytes.g = fadeInColor.bytes.b = 0;
+                ScreenEffect::DrawSquare(&fadeInRect, fadeInColor.color);
             }
             else if (frameCount > 840)
             {
-                local_34.left = 0.0f;
-                local_34.top = 0.0f;
-                local_34.right = 639.0f;
-                local_34.bottom = 479.0f;
-                local_24.bytes.a = (frameCount - 840) * 255 / 60;
-                local_24.bytes.r = local_24.bytes.g = local_24.bytes.b = 0;
-                ScreenEffect::DrawSquare(&local_34, local_24.color);
+                fadeOutRect.left = 0.0f;
+                fadeOutRect.top = 0.0f;
+                fadeOutRect.right = 639.0f;
+                fadeOutRect.bottom = 479.0f;
+                fadeOutColor.bytes.a = (frameCount - 840) * 255 / 60;
+                fadeOutColor.bytes.r = fadeOutColor.bytes.g = fadeOutColor.bytes.b = 0;
+                ScreenEffect::DrawSquare(&fadeOutRect, fadeOutColor.color);
             }
             g_CurFrameRawInput = Controller::GetInput();
             g_Supervisor.gfxDevice->EndFrame();
             g_Supervisor.gfxDevice->SwapBuffers();
-            if (120 <= frameCount && frameCount < 840 &&
+            if (frameCount >= 120 && frameCount < 840 &&
                 WAS_PRESSED_RAW(TH_BUTTON_SELECTMENU | TH_BUTTON_BOMB))
             {
                 frameCount = 840;
@@ -2453,34 +2437,34 @@ ZunResult MainMenu::ActualAddedCallback()
         }
         g_AnmManager->ReleaseSurface(0);
     }
-    g_GameManager.phantasmUnlocked = g_GameManager.HasUnlockedPhantomAndMaxClears();
-    this->gameState = STATE_PRE_INPUT;
+    g_GameManager.phantasmUnlocked = g_GameManager.HasUnlockedPhantasmAndMaxClears();
+    this->menuState = MENU_STATE_PRE_INPUT;
     InitializeTimingVars(&g_Supervisor);
     switch (g_Supervisor.prevState)
     {
-    case 2:
-    case 3:
-    case 6:
+    case SUPERVISOR_STATE_GAMEMANAGER:
+    case SUPERVISOR_STATE_NEXT_STAGE:
+    case SUPERVISOR_STATE_RESULTSCREEN_FROM_GAME:
         this->cursor = g_GameManager.difficulty >= 4;
         break;
-    case 5:
-        this->cursor = 4;
+    case SUPERVISOR_STATE_RESULTSCREEN:
+        this->cursor = MENU_CURSOR_PREINPUT_RESULTS;
         break;
-    case 8:
-        this->cursor = 5;
+    case SUPERVISOR_STATE_MUSICROOM:
+        this->cursor = MENU_CURSOR_PREINPUT_MUSICROOM;
         break;
     default:
-        this->cursor = 0;
+        this->cursor = MENU_CURSOR_PREINPUT_START;
         break;
     }
     this->isPracticeMode = 0;
     if (g_GameManager.practice)
     {
-        this->cursor = 2;
+        this->cursor = MENU_CURSOR_PREINPUT_PRACTICE_START;
         this->isPracticeMode = 1;
     }
     g_GameManager.practice = 0;
-    if (g_Supervisor.prevState)
+    if (g_Supervisor.prevState != SUPERVISOR_STATE_INIT)
     {
         GameManager::DrawLoadingSprite();
     }
@@ -2491,25 +2475,27 @@ ZunResult MainMenu::ActualAddedCallback()
 
     if (!g_GameManager.demo)
     {
-        if (g_Supervisor.prevState != 5)
+        if (g_Supervisor.prevState != SUPERVISOR_STATE_RESULTSCREEN)
         {
             g_Supervisor.LoadAudio(8, "bgm/th07_01.mid");
         }
         if (g_Supervisor.lastTotalPlayTimeUpdate == 0)
         {
-            BombEffects::RegisterChain(0, 70, 0xffffff, 0, 0);
+            ScreenEffect::RegisterChain(SCREEN_EFFECT_FADE_OUT, 70, 0xffffff, 0, 0);
         }
         else
         {
-            BombEffects::RegisterChain(0, 70, 0xffffff, 0, 0);
+            ScreenEffect::RegisterChain(SCREEN_EFFECT_FADE_OUT, 70, 0xffffff, 0, 0);
         }
     }
-    for (i = 0; i < 14; i++)
+    for (i = 0; i < ARRAY_SIZE_SIGNED(this->descriptionVms); i++)
     {
-        g_AnmManager->SetAnmIdxAndExecuteScript(&this->vms[i], 1798);
-        g_AnmManager->SetActiveSprite(&this->vms[i], this->vms[i].activeSpriteIdx + i);
+        g_AnmManager->SetAnmIdxAndExecuteScript(&this->descriptionVms[i],
+                                                ANM_SCRIPT_TEXT_MAINMENU_OPTION_DESC);
+        g_AnmManager->SetActiveSprite(&this->descriptionVms[i],
+                                      this->descriptionVms[i].activeSpriteIdx + i);
     }
-    this->cursorVm = this->vms;
+    this->curDescriptionVm = this->descriptionVms;
     g_GameManager.demo = 0;
     g_GameManager.demoFrames = 0;
     return ZUN_SUCCESS;
@@ -2524,17 +2510,17 @@ ZunResult MainMenu::AddedCallback(MainMenu *arg)
 ZunResult MainMenu::Release()
 {
     SAFE_FREE(this->currentReplay);
-    if (this->vmHead)
+    if (this->vms)
     {
-        delete[] this->vmHead;
-        this->vmHead = NULL;
+        delete[] this->vms;
+        this->vms = NULL;
     }
     return ZUN_SUCCESS;
 }
 
 ZunResult MainMenu::DeletedCallback(MainMenu *arg)
 {
-    for (i32 i = 32; i <= 41; i++)
+    for (i32 i = ANM_FILE_TITLE_0; i <= ANM_FILE_TITLE_9; i++)
     {
         g_AnmManager->ReleaseAnm(i);
     }
@@ -2557,14 +2543,14 @@ ZunResult MainMenu::RegisterChain()
     mgr->calcChain->arg = mgr;
     mgr->calcChain->addedCallback = (ChainLifecycleCallback)AddedCallback;
     mgr->calcChain->deletedCallback = (ChainLifecycleCallback)DeletedCallback;
-    if (g_Chain.AddToCalcChain(mgr->calcChain, 3))
+    if (g_Chain.AddToCalcChain(mgr->calcChain, CHAIN_PRIO_CALC_MAINMENU))
     {
         return ZUN_ERROR;
     }
 
     mgr->drawChain = g_Chain.CreateElem((ChainCallback)OnDraw);
     mgr->drawChain->arg = mgr;
-    g_Chain.AddToDrawChain(mgr->drawChain, 0);
+    g_Chain.AddToDrawChain(mgr->drawChain, CHAIN_PRIO_DRAW_MAINMENU);
 
     return ZUN_SUCCESS;
 }

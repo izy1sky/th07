@@ -194,7 +194,7 @@ ZunGraphics *GlesGraphics::Init()
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(RenderVertexInfo),
-                          (void *)offsetof(RenderVertexInfo, position));
+                          (void *)offsetof(RenderVertexInfo, pos));
     glDisableVertexAttribArray(1);
     glVertexAttrib4f(1, 1.0f, 1.0f, 1.0f, 1.0f);
     glEnableVertexAttribArray(2);
@@ -284,7 +284,7 @@ ZunGraphics *GlesGraphics::Init()
                               (void *)offsetof(VertexTex1DiffuseXyzrhw, pos));
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(VertexTex1DiffuseXyzrhw),
-                              (void *)offsetof(VertexTex1DiffuseXyzrhw, color));
+                              (void *)offsetof(VertexTex1DiffuseXyzrhw, diffuse));
         glEnableVertexAttribArray(2);
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexTex1DiffuseXyzrhw),
                               (void *)offsetof(VertexTex1DiffuseXyzrhw, textureUV));
@@ -293,7 +293,7 @@ ZunGraphics *GlesGraphics::Init()
         glBindBuffer(GL_ARRAY_BUFFER, gfx->vbos[i]);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexTex1DiffuseXyz),
-                              (void *)offsetof(VertexTex1DiffuseXyz, position));
+                              (void *)offsetof(VertexTex1DiffuseXyz, pos));
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(VertexTex1DiffuseXyz),
                               (void *)offsetof(VertexTex1DiffuseXyz, diffuse));

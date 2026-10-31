@@ -30,7 +30,7 @@ AnmManager::AnmManager()
 {
     memset((void *)this, 0, sizeof(AnmManager));
 
-    for (i32 i = 0; i < 2560; i++)
+    for (i32 i = 0; i < ARRAY_SIZE_SIGNED(this->sprites); i++)
     {
         this->sprites[i].sourceFileIndex = -1;
     }
@@ -69,18 +69,18 @@ AnmManager::~AnmManager()
 
 void AnmManager::SetupVertexBuffer()
 {
-    this->vertexBufferContents[2].position.x = -128.0f;
-    this->vertexBufferContents[0].position.x = -128.0f;
-    this->vertexBufferContents[3].position.x = 128.0f;
-    this->vertexBufferContents[1].position.x = 128.0f;
-    this->vertexBufferContents[1].position.y = -128.0f;
-    this->vertexBufferContents[0].position.y = -128.0f;
-    this->vertexBufferContents[3].position.y = 128.0f;
-    this->vertexBufferContents[2].position.y = 128.0f;
-    this->vertexBufferContents[3].position.z = 0.0f;
-    this->vertexBufferContents[2].position.z = 0.0f;
-    this->vertexBufferContents[1].position.z = 0.0f;
-    this->vertexBufferContents[0].position.z = 0.0f;
+    this->vertexBufferContents[2].pos.x = -128.0f;
+    this->vertexBufferContents[0].pos.x = -128.0f;
+    this->vertexBufferContents[3].pos.x = 128.0f;
+    this->vertexBufferContents[1].pos.x = 128.0f;
+    this->vertexBufferContents[1].pos.y = -128.0f;
+    this->vertexBufferContents[0].pos.y = -128.0f;
+    this->vertexBufferContents[3].pos.y = 128.0f;
+    this->vertexBufferContents[2].pos.y = 128.0f;
+    this->vertexBufferContents[3].pos.z = 0.0f;
+    this->vertexBufferContents[2].pos.z = 0.0f;
+    this->vertexBufferContents[1].pos.z = 0.0f;
+    this->vertexBufferContents[0].pos.z = 0.0f;
     this->vertexBufferContents[2].textureUV.x = 0.0f;
     this->vertexBufferContents[0].textureUV.x = 0.0f;
     this->vertexBufferContents[3].textureUV.x = 1.0f;
@@ -90,10 +90,10 @@ void AnmManager::SetupVertexBuffer()
     this->vertexBufferContents[3].textureUV.y = 1.0f;
     this->vertexBufferContents[2].textureUV.y = 1.0f;
 
-    g_Quad3DFallback[0].position = this->vertexBufferContents[0].position;
-    g_Quad3DFallback[1].position = this->vertexBufferContents[1].position;
-    g_Quad3DFallback[2].position = this->vertexBufferContents[2].position;
-    g_Quad3DFallback[3].position = this->vertexBufferContents[3].position;
+    g_Quad3DFallback[0].pos = this->vertexBufferContents[0].pos;
+    g_Quad3DFallback[1].pos = this->vertexBufferContents[1].pos;
+    g_Quad3DFallback[2].pos = this->vertexBufferContents[2].pos;
+    g_Quad3DFallback[3].pos = this->vertexBufferContents[3].pos;
     g_Quad3DFallback[0].textureUV.x = this->vertexBufferContents[0].textureUV.x;
     g_Quad3DFallback[0].textureUV.y = this->vertexBufferContents[0].textureUV.y;
     g_Quad3DFallback[1].textureUV.x = this->vertexBufferContents[1].textureUV.x;
@@ -345,7 +345,7 @@ i32 AnmManager::LoadAnm(i32 textureIdx, AnmRawEntry *rawEntry, i32 spriteIdxOffs
         g_GameErrorContext.Fatal("アニメが読み込めません。データが失われてるか壊れています\n");
         return ZUN_ERROR;
     }
-    if (textureIdx >= 50)
+    if (textureIdx >= ARRAY_SIZE_SIGNED(this->anmFiles))
     {
         g_GameErrorContext.Fatal("テクスチャ格納先が足りません\n");
         return ZUN_ERROR;
@@ -423,7 +423,7 @@ i32 AnmManager::LoadAnm(i32 textureIdx, AnmRawEntry *rawEntry, i32 spriteIdxOffs
         {
             id = rawSprite->id;
         }
-        if (rawSprite->id + spriteIdxOffset >= 2560)
+        if (rawSprite->id + spriteIdxOffset >= ARRAY_SIZE_SIGNED(this->sprites))
         {
             g_GameErrorContext.Fatal("スプライトが格納できません。テーブルが不足しています\n");
             return ZUN_ERROR;
@@ -432,7 +432,7 @@ i32 AnmManager::LoadAnm(i32 textureIdx, AnmRawEntry *rawEntry, i32 spriteIdxOffs
     }
     for (i = 0; i < data->numScripts; i++, curSprite += 2)
     {
-        if (*curSprite + spriteIdxOffset >= 2560)
+        if (*curSprite + spriteIdxOffset >= ARRAY_SIZE_SIGNED(this->sprites))
         {
             g_GameErrorContext.Fatal("アニメが格納できません。テーブルが不足しています\n");
             return ZUN_ERROR;
@@ -458,7 +458,7 @@ void AnmManager::ReleaseAnm(i32 anmIdx)
     i32 spriteIdxOffset;
     i32 *spriteIdx;
 
-    if (anmIdx < 0 || (u32)anmIdx >= 50)
+    if (anmIdx < 0 || (u32)anmIdx >= ARRAY_SIZE_SIGNED(this->anmFiles))
     {
         return;
     }
@@ -501,7 +501,7 @@ void AnmManager::ReleaseAnm(i32 anmIdx)
 
 void AnmManager::ReleaseTexture(i32 textureIdx)
 {
-    if (textureIdx < 0 || (u32)textureIdx >= 264)
+    if (textureIdx < 0 || textureIdx >= ARRAY_SIZE(this->textures))
     {
         return;
     }
@@ -623,10 +623,10 @@ void AnmManager::SetRenderStateForVm(AnmVm *vm)
             color.bytes.b = ZunColor::Multiply(color.bytes.b, this->color.bytes.b);
             color.bytes.a = ZunColor::Multiply(color.bytes.a, this->color.bytes.a);
         }
-        g_QuadVertices[0].color = color;
-        g_QuadVertices[1].color = color;
-        g_QuadVertices[2].color = color;
-        g_QuadVertices[3].color = color;
+        g_QuadVertices[0].diffuse = color;
+        g_QuadVertices[1].diffuse = color;
+        g_QuadVertices[2].diffuse = color;
+        g_QuadVertices[3].diffuse = color;
         g_Quad3DFallback[0].diffuse = color;
         g_Quad3DFallback[1].diffuse = color;
         g_Quad3DFallback[2].diffuse = color;
@@ -761,10 +761,10 @@ ZunResult AnmManager::DrawInner(AnmVm *vm, u32 drawFlags)
             color.bytes.b = ZunColor::Multiply(color.bytes.b, this->color.bytes.b);
             color.bytes.a = ZunColor::Multiply(color.bytes.a, this->color.bytes.a);
         }
-        g_QuadVertices[0].color = color;
-        g_QuadVertices[1].color = color;
-        g_QuadVertices[2].color = color;
-        g_QuadVertices[3].color = color;
+        g_QuadVertices[0].diffuse = color;
+        g_QuadVertices[1].diffuse = color;
+        g_QuadVertices[2].diffuse = color;
+        g_QuadVertices[3].diffuse = color;
     }
     SyncRenderState(vm);
     PushSprite(g_QuadVertices);
@@ -1174,14 +1174,10 @@ void AnmManager::CalcProjectedTransform(AnmVm *vm)
 
     ZunMatrix wvp = world * g_Supervisor.viewProjectionMatrix;
 
-    g_QuadVertices[0].pos.Project(&this->vertexBufferContents[0].position, &g_Supervisor.viewport,
-                                  &wvp);
-    g_QuadVertices[1].pos.Project(&this->vertexBufferContents[1].position, &g_Supervisor.viewport,
-                                  &wvp);
-    g_QuadVertices[2].pos.Project(&this->vertexBufferContents[2].position, &g_Supervisor.viewport,
-                                  &wvp);
-    g_QuadVertices[3].pos.Project(&this->vertexBufferContents[3].position, &g_Supervisor.viewport,
-                                  &wvp);
+    g_QuadVertices[0].pos.Project(&this->vertexBufferContents[0].pos, &g_Supervisor.viewport, &wvp);
+    g_QuadVertices[1].pos.Project(&this->vertexBufferContents[1].pos, &g_Supervisor.viewport, &wvp);
+    g_QuadVertices[2].pos.Project(&this->vertexBufferContents[2].pos, &g_Supervisor.viewport, &wvp);
+    g_QuadVertices[3].pos.Project(&this->vertexBufferContents[3].pos, &g_Supervisor.viewport, &wvp);
 }
 
 ZunResult AnmManager::DrawProjected(AnmVm *vm)
@@ -1330,25 +1326,25 @@ f32 AnmVm::GetFloatVarValue(f32 arg)
 {
     switch ((i32)arg)
     {
-    case 10000:
+    case ANM_VAR_INT1_1:
         return (f32)this->intVars1[0];
-    case 10001:
+    case ANM_VAR_INT1_2:
         return (f32)this->intVars1[1];
-    case 10002:
+    case ANM_VAR_INT1_3:
         return (f32)this->intVars1[2];
-    case 10003:
+    case ANM_VAR_INT1_4:
         return (f32)this->intVars1[3];
-    case 10004:
+    case ANM_VAR_FLOAT_1:
         return this->floatVars[0];
-    case 10005:
+    case ANM_VAR_FLOAT_2:
         return this->floatVars[1];
-    case 10006:
+    case ANM_VAR_FLOAT_3:
         return this->floatVars[2];
-    case 10007:
+    case ANM_VAR_FLOAT_4:
         return this->floatVars[3];
-    case 10008:
+    case ANM_VAR_INT2_1:
         return (f32)this->intVars2[0];
-    case 10009:
+    case ANM_VAR_INT2_2:
         return (f32)this->intVars2[1];
     default:
         return arg;
@@ -1359,25 +1355,25 @@ i32 AnmVm::GetVarValue(i32 arg)
 {
     switch (arg)
     {
-    case 10000:
+    case ANM_VAR_INT1_1:
         return this->intVars1[0];
-    case 10001:
+    case ANM_VAR_INT1_2:
         return this->intVars1[1];
-    case 10002:
+    case ANM_VAR_INT1_3:
         return this->intVars1[2];
-    case 10003:
+    case ANM_VAR_INT1_4:
         return this->intVars1[3];
-    case 10004:
+    case ANM_VAR_FLOAT_1:
         return this->floatVars[0];
-    case 10005:
+    case ANM_VAR_FLOAT_2:
         return this->floatVars[1];
-    case 10006:
+    case ANM_VAR_FLOAT_3:
         return this->floatVars[2];
-    case 10007:
+    case ANM_VAR_FLOAT_4:
         return this->floatVars[3];
-    case 10008:
+    case ANM_VAR_INT2_1:
         return this->intVars2[0];
-    case 10009:
+    case ANM_VAR_INT2_2:
         return this->intVars2[1];
     default:
         return arg;
@@ -1393,13 +1389,13 @@ f32 *AnmVm::GetFloatVar(f32 *paramId, u16 mask, u32 idx)
 
     switch ((u32)*paramId)
     {
-    case 10004:
+    case ANM_VAR_FLOAT_1:
         return &this->floatVars[0];
-    case 10005:
+    case ANM_VAR_FLOAT_2:
         return &this->floatVars[1];
-    case 10006:
+    case ANM_VAR_FLOAT_3:
         return &this->floatVars[2];
-    case 10007:
+    case ANM_VAR_FLOAT_4:
         return &this->floatVars[3];
     default:
         return paramId;
@@ -1415,17 +1411,17 @@ i32 *AnmVm::GetVar(i32 *paramId, u16 mask, u32 idx)
 
     switch (*paramId)
     {
-    case 10000:
+    case ANM_VAR_INT1_1:
         return &this->intVars1[0];
-    case 10001:
+    case ANM_VAR_INT1_2:
         return &this->intVars1[1];
-    case 10002:
+    case ANM_VAR_INT1_3:
         return &this->intVars1[2];
-    case 10003:
+    case ANM_VAR_INT1_4:
         return &this->intVars1[3];
-    case 10008:
+    case ANM_VAR_INT2_1:
         return &this->intVars2[0];
-    case 10009:
+    case ANM_VAR_INT2_2:
         return &this->intVars2[1];
     default:
         return paramId;
@@ -1541,7 +1537,7 @@ WHY_NOT_JUST_CONTINUE:
         case ANM_INTERP_SCALE:
             vm->interpStartTimes[4] = 0;
             vm->interpEndTimes[4] = GET_INT_VALUE(2);
-            vm->interpModes[4] = 0;
+            vm->easeModes[4] = 0;
             vm->scaleInterpInitial = vm->scale;
             vm->scaleInterpFinal.x = GET_FLOAT_VALUE(0);
             vm->scaleInterpFinal.y = GET_FLOAT_VALUE(1);
@@ -1551,7 +1547,7 @@ WHY_NOT_JUST_CONTINUE:
             vm->colorInterpFinalColor.bytes.a = instr->args[0].b[0];
             vm->interpStartTimes[2] = 0;
             vm->interpEndTimes[2] = GET_INT_VALUE(1);
-            vm->interpModes[2] = 0;
+            vm->easeModes[2] = 0;
             break;
         case ANM_SET_BLEND:
             vm->blendMode = instr->args[0].i;
@@ -1567,13 +1563,13 @@ WHY_NOT_JUST_CONTINUE:
             }
             break;
         case ANM_POS_TIME_ACCEL:
-            vm->interpModes[0] = 6;
+            vm->easeModes[0] = 6;
             goto interp_pos;
         case ANM_POS_TIME_DECEL:
-            vm->interpModes[0] = 4;
+            vm->easeModes[0] = 4;
             goto interp_pos;
         case ANM_POS_TIME_LINEAR:
-            vm->interpModes[0] = 0;
+            vm->easeModes[0] = 0;
         interp_pos:
             if (!vm->useOffset)
             {
@@ -1695,7 +1691,7 @@ WHY_NOT_JUST_CONTINUE:
         case ANM_INTERP_POS:
             vm->interpStartTimes[0] = 0;
             vm->interpEndTimes[0] = GET_INT_VALUE(0);
-            vm->interpModes[0] = instr->args[1].b[0];
+            vm->easeModes[0] = instr->args[1].b[0];
             if (!vm->useOffset)
             {
                 vm->posInterpInitial = vm->pos;
@@ -1711,7 +1707,7 @@ WHY_NOT_JUST_CONTINUE:
         case ANM_INTERP_COLOR:
             vm->interpStartTimes[1] = 0;
             vm->interpEndTimes[1] = GET_INT_VALUE(0);
-            vm->interpModes[1] = instr->args[1].b[0];
+            vm->easeModes[1] = instr->args[1].b[0];
             vm->colorInterpInitialColor.bytes.r = vm->color.bytes.r;
             vm->colorInterpInitialColor.bytes.g = vm->color.bytes.g;
             vm->colorInterpInitialColor.bytes.b = vm->color.bytes.b;
@@ -1722,14 +1718,14 @@ WHY_NOT_JUST_CONTINUE:
         case ANM_INTERP_ALPHA:
             vm->interpStartTimes[2] = 0;
             vm->interpEndTimes[2] = GET_INT_VALUE(0);
-            vm->interpModes[2] = instr->args[1].b[0];
+            vm->easeModes[2] = instr->args[1].b[0];
             vm->colorInterpInitialColor.bytes.a = vm->color.bytes.a;
             vm->colorInterpFinalColor.bytes.a = instr->args[2].b[0];
             break;
         case ANM_INTERP_ROTATE:
             vm->interpStartTimes[3] = 0;
             vm->interpEndTimes[3] = GET_INT_VALUE(0);
-            vm->interpModes[3] = instr->args[1].b[0];
+            vm->easeModes[3] = instr->args[1].b[0];
             vm->rotateInterpInitial = vm->rotation;
             vm->rotateInterpFinal.x = GET_FLOAT_VALUE(2);
             vm->rotateInterpFinal.y = GET_FLOAT_VALUE(3);
@@ -1739,7 +1735,7 @@ WHY_NOT_JUST_CONTINUE:
         case ANM_INTERP_SCALE_2:
             vm->interpStartTimes[4] = 0;
             vm->interpEndTimes[4] = GET_INT_VALUE(0);
-            vm->interpModes[4] = instr->args[1].b[0];
+            vm->easeModes[4] = instr->args[1].b[0];
             vm->scaleInterpInitial = vm->scale;
             vm->scaleInterpFinal.x = GET_FLOAT_VALUE(2);
             vm->scaleInterpFinal.y = GET_FLOAT_VALUE(3);
@@ -1832,7 +1828,7 @@ WHY_NOT_JUST_CONTINUE:
         case ANM_ATAN:
             *GET_FLOAT_PTR(0) = atanf(GET_FLOAT_VALUE(1));
             break;
-        case ANM_ADD_NORMALIZE_ANGLE:
+        case ANM_NORMALIZE_ANGLE:
             *GET_FLOAT_PTR(0) = utils::AddNormalizeAngle(GET_FLOAT_VALUE(0), 0.0f);
             break;
         case ANM_JUMP_IF_EQ:
@@ -1938,7 +1934,7 @@ stop:
             vm->rotation.z, g_Supervisor.effectiveFramerateMultiplier * vm->angleVel.z);
         vm->updateRotation = 1;
     }
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < ARRAY_SIZE_SIGNED(vm->interpStartTimes); i++)
     {
         if (vm->interpEndTimes[i] > 0)
         {
@@ -1952,29 +1948,29 @@ stop:
             {
                 t = vm->interpStartTimes[i].AsFloat() / vm->interpEndTimes[i].AsFloat();
             }
-            switch (vm->interpModes[i])
+            switch (vm->easeModes[i])
             {
-            case 1:
+            case ANM_EASE_IN_QUAD:
                 t = t * t;
                 break;
-            case 2:
+            case ANM_EASE_IN_CUBIC:
                 t = t * t * t;
                 break;
-            case 3:
+            case ANM_EASE_IN_QUART:
                 t = t * t;
                 t = t * t;
                 break;
-            case 4:
+            case ANM_EASE_OUT_QUAD:
                 t = 1.0f - t;
                 t = t * t;
                 t = 1.0f - t;
                 break;
-            case 5:
+            case ANM_EASE_OUT_CUBIC:
                 t = 1.0f - t;
                 t = t * t * t;
                 t = 1.0f - t;
                 break;
-            case 6:
+            case ANM_EASE_OUT_QUART:
                 t = 1.0f - t;
                 t = t * t;
                 t = t * t;
@@ -2265,8 +2261,8 @@ void AnmManager::CopySurfaceToBackBuffer(i32 surfaceIdx, i32 left, i32 top, i32 
     vertices[2].textureUV = {u0, v1};
     vertices[3].textureUV = {u1, v1};
 
-    vertices[0].color.color = vertices[1].color.color = vertices[2].color.color =
-        vertices[3].color.color = 0xFFFFFFFF;
+    vertices[0].diffuse.color = vertices[1].diffuse.color = vertices[2].diffuse.color =
+        vertices[3].diffuse.color = 0xFFFFFFFF;
 
     g_Supervisor.gfxDevice->SetDepthMask(false);
     g_Supervisor.gfxDevice->SetBlendMode(BLEND_NONE, BLEND_NONE);
@@ -2312,8 +2308,8 @@ void AnmManager::DrawEndingRect(i32 surfaceIdx, f32 rectX, f32 rectY, f32 rectLe
     vertices[2].textureUV = {u0, v1};
     vertices[3].textureUV = {u1, v1};
 
-    vertices[0].color.color = vertices[1].color.color = vertices[2].color.color =
-        vertices[3].color.color = 0xFFFFFFFF;
+    vertices[0].diffuse.color = vertices[1].diffuse.color = vertices[2].diffuse.color =
+        vertices[3].diffuse.color = 0xFFFFFFFF;
 
     g_Supervisor.gfxDevice->SetDepthMask(false);
     g_Supervisor.gfxDevice->SetBlendMode(BLEND_NONE, BLEND_NONE);
@@ -2496,7 +2492,7 @@ ZunResult AnmManager::UpdateTrail(AnmVm *vm, VertexTex1DiffuseXyzrhw *vertices, 
     {
         vertex->textureUV.x = uvX;
         vertex->textureUV.y = uvY;
-        vertex->color.color = vm->color.color;
+        vertex->diffuse.color = vm->color.color;
         vertex->w = 1.0f;
     }
 
@@ -2507,7 +2503,7 @@ ZunResult AnmManager::UpdateTrail(AnmVm *vm, VertexTex1DiffuseXyzrhw *vertices, 
     {
         vertex->textureUV.x = uvX;
         vertex->textureUV.y = uvY;
-        vertex->color.color = vm->color.color;
+        vertex->diffuse.color = vm->color.color;
         vertex->w = 1.0f;
     }
 

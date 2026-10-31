@@ -528,14 +528,14 @@ static void ApplyResume()
     g_GameManager.cherryMax = globals->cherryStart + save->cherryMax;
     g_GameManager.cherryPlus = globals->cherryStart + save->cherryPlus;
     g_GameManager.rank.rank = save->rank;
-    g_GameManager.playTimeAll = save->playTimeAll;
+    g_GameManager.totalPlayTime = save->playTimeAll;
     g_GameManager.powerItemCountForScore = save->powerItemCountForScore;
     g_State.retries = save->retries;
-    g_Gui.showLives = 2;
-    g_Gui.showBombs = 2;
-    g_Gui.showPower = 2;
-    g_Gui.showGraze = 2;
-    g_Gui.showPoint = 2;
+    g_Gui.lifeDisplayUpdateFrames = 2;
+    g_Gui.bombDisplayUpdateFrames = 2;
+    g_Gui.powerDisplayUpdateFrames = 2;
+    g_Gui.grazeDisplayUpdateFrames = 2;
+    g_Gui.pointDisplayUpdateFrames = 2;
     PD_LOG("resumed saved run (score %u, power %d, bombs %d, retries %d)", save->score, (i32)save->currentPower,
            (i32)save->bombsRemaining, save->retries);
 }
@@ -557,7 +557,7 @@ void OnGameStart(bool isNewGame)
             // Lives mean nothing here: no stars on the side panel and no
             // life bonus at stage clear.
             g_GameManager.SetLivesRemaining(0);
-            g_Gui.showLives = 2;
+            g_Gui.lifeDisplayUpdateFrames = 2;
         }
     }
     g_State.menu = MENU_NONE;
@@ -585,7 +585,7 @@ static f32 DistanceSquared(const ZunVec3 *a, const ZunVec3 *b)
 // moment after being sent back to it.
 static bool IsSafeToCheckpoint(bool relaxed)
 {
-    const ZunVec3 *playerPos = &g_Player.positionCenter;
+    const ZunVec3 *playerPos = &g_Player.pos;
     f32 bulletRadius = relaxed ? PD_SAFE_BULLET_RADIUS_RELAXED : PD_SAFE_BULLET_RADIUS;
     i32 i;
 
@@ -609,7 +609,7 @@ static bool IsSafeToCheckpoint(bool relaxed)
     {
         for (i = 0; i < (i32)ARRAY_SIZE(g_BulletManager.lasers); i++)
         {
-            if (g_BulletManager.lasers[i].inUse)
+            if (g_BulletManager.lasers[i].isInUse)
             {
                 return false;
             }
@@ -618,7 +618,7 @@ static bool IsSafeToCheckpoint(bool relaxed)
     for (i = 0; i < (i32)ARRAY_SIZE(g_EnemyManager.enemies); i++)
     {
         if (g_EnemyManager.enemies[i].active &&
-            DistanceSquared(&g_EnemyManager.enemies[i].position, playerPos) <
+            DistanceSquared(&g_EnemyManager.enemies[i].pos, playerPos) <
                 PD_SAFE_ENEMY_RADIUS * PD_SAFE_ENEMY_RADIUS)
         {
             return false;
@@ -655,7 +655,7 @@ static void RecordStageStart()
     save->cherryMax = g_GameManager.cherryMax - globals->cherryStart;
     save->cherryPlus = g_GameManager.cherryPlus - globals->cherryStart;
     save->rank = g_GameManager.rank.rank;
-    save->playTimeAll = g_GameManager.playTimeAll;
+    save->playTimeAll = g_GameManager.totalPlayTime;
     save->powerItemCountForScore = g_GameManager.powerItemCountForScore;
     save->retries = g_State.retries;
 }
@@ -770,11 +770,11 @@ static void RestoreCheckpoint()
     g_Player.invulnerabilityTimer = PD_RESTORE_INVULNERABILITY;
 
     // Redraw the whole side panel.
-    g_Gui.showLives = 2;
-    g_Gui.showBombs = 2;
-    g_Gui.showPower = 2;
-    g_Gui.showGraze = 2;
-    g_Gui.showPoint = 2;
+    g_Gui.lifeDisplayUpdateFrames = 2;
+    g_Gui.bombDisplayUpdateFrames = 2;
+    g_Gui.powerDisplayUpdateFrames = 2;
+    g_Gui.grazeDisplayUpdateFrames = 2;
+    g_Gui.pointDisplayUpdateFrames = 2;
 
     g_State.retries++;
     PD_LOG("rewound to checkpoint, retry %d (score %u, power %d, bombs %d, lives %d)", g_State.retries,
@@ -905,7 +905,7 @@ bool OpenPauseMenu()
         {
             g_SoundPlayer.PushCommand(AUDIO_PAUSE, 0, "Pause");
         }
-        g_SoundPlayer.PlaySoundByIdx(SOUND_37, 0);
+        g_SoundPlayer.PlaySoundByIdx(SOUND_PAUSED, 0);
         g_Supervisor.UpdateTime();
     }
     return true;
@@ -1166,7 +1166,7 @@ static void DrawArt(const char *name, f32 x, f32 y, f32 alpha = 1.0f)
     for (i = 0; i < 4; i++)
     {
         vertices[i].w = 1.0f;
-        vertices[i].color.color = ((u32)(alpha * 255.0f) << 24) | 0xffffff;
+        vertices[i].diffuse.color = ((u32)(alpha * 255.0f) << 24) | 0xffffff;
     }
 
     g_Supervisor.gfxDevice->BindTexture(g_ArtTexture);

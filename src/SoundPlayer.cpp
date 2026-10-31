@@ -6,6 +6,7 @@
 #include "GameErrorContext.hpp"
 #include "Supervisor.hpp"
 #include "dxutil.hpp"
+#include "utils.hpp"
 
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
@@ -452,7 +453,7 @@ static bool ThBgmDataSource_init_memory(ThBgmDataSource *pBgm, const u8 *pData, 
 SoundPlayer::SoundPlayer()
 {
     memset(this, 0, sizeof(SoundPlayer));
-    for (i32 i = 0; i < 128; i++)
+    for (i32 i = 0; i < ARRAY_SIZE_SIGNED(this->unusedSoundVolRelated); i++)
     {
         this->unusedSoundVolRelated[i] = -1;
     }
@@ -461,22 +462,44 @@ SoundPlayer::SoundPlayer()
 ZunResult SoundPlayer::InitializeSound()
 {
     ma_engine_config engineConfig;
+    ma_device_config deviceConfig;
 
     memset(this, 0, sizeof(SoundPlayer));
-    for (i32 i = 0; i < 128; i++)
+    for (i32 i = 0; i < ARRAY_SIZE_SIGNED(this->unusedSoundVolRelated); i++)
     {
         this->unusedSoundVolRelated[i] = -1;
     }
 
     this->engine = new ma_engine;
+    this->device = new ma_device;
+
+    deviceConfig = ma_device_config_init(ma_device_type_playback);
+    deviceConfig.playback.format = ma_format_f32;
+    deviceConfig.playback.channels = 2;
+    deviceConfig.sampleRate = 44100;
+    deviceConfig.periods = 3;
+    deviceConfig.periodSizeInMilliseconds = 10;
+    deviceConfig.dataCallback = ma_engine_data_callback_internal;
+    deviceConfig.pUserData = this->engine;
+    deviceConfig.noPreSilencedOutputBuffer = MA_TRUE;
+    deviceConfig.noClip = MA_TRUE;
+
+    if (ma_device_init(NULL, &deviceConfig, this->device) != MA_SUCCESS)
+    {
+        g_GameErrorContext.Log("DirectSound オブジェクトの初期化が失敗したよ\n");
+        SAFE_DELETE(this->device);
+        SAFE_DELETE(this->engine);
+        return ZUN_ERROR;
+    }
 
     engineConfig = ma_engine_config_init();
-    engineConfig.sampleRate = 44100;
-    engineConfig.channels = 2;
+    engineConfig.pDevice = this->device;
 
     if (ma_engine_init(&engineConfig, this->engine) != MA_SUCCESS)
     {
         g_GameErrorContext.Log("DirectSound オブジェクトの初期化が失敗したよ\n");
+        ma_device_uninit(this->device);
+        SAFE_DELETE(this->device);
         SAFE_DELETE(this->engine);
         return ZUN_ERROR;
     }
@@ -484,6 +507,9 @@ ZunResult SoundPlayer::InitializeSound()
     if (ma_engine_start(this->engine) != MA_SUCCESS)
     {
         g_GameErrorContext.Log("DirectSound オブジェクトの初期化が失敗したよ\n");
+        ma_engine_uninit(this->engine);
+        ma_device_uninit(this->device);
+        SAFE_DELETE(this->device);
         SAFE_DELETE(this->engine);
         return ZUN_ERROR;
     }
@@ -501,7 +527,7 @@ ZunResult SoundPlayer::Release()
         return ZUN_SUCCESS;
     }
 
-    for (i = 0; i < 128; i++)
+    for (i = 0; i < ARRAY_SIZE_SIGNED(this->soundBuffers); i++)
     {
         if (this->soundBuffers[i])
         {
@@ -522,9 +548,11 @@ ZunResult SoundPlayer::Release()
 
     StopBGM();
 
+    ma_device_uninit(this->device);
+    SAFE_DELETE(this->device);
     ma_engine_uninit(this->engine);
     SAFE_DELETE(this->engine);
-    for (i = 0; i < 16; i++)
+    for (i = 0; i < ARRAY_SIZE_SIGNED(this->bgmPreloadData); i++)
     {
         SAFE_FREE(this->bgmPreloadData[i]);
     }
@@ -535,39 +563,39 @@ ZunResult SoundPlayer::Release()
     return ZUN_SUCCESS;
 }
 
-i32 SoundPlayer::GetFmtIndexByName(const char *param_1)
+i32 SoundPlayer::GetFmtIndexByName(const char *name)
 {
     std::string filename;
-    i32 local_c;
-    const char *local_8;
+    i32 fmtIdx;
+    const char *slashPos;
 
-    local_c = 0;
-    local_8 = strrchr(param_1, '/');
-    if (!local_8)
+    fmtIdx = 0;
+    slashPos = strrchr(name, '/');
+    if (!slashPos)
     {
-        local_8 = strrchr(param_1, '\\');
+        slashPos = strrchr(name, '\\');
     }
-    if (!local_8)
+    if (!slashPos)
     {
-        filename = param_1;
+        filename = name;
     }
     else
     {
-        filename = local_8 + 1;
+        filename = slashPos + 1;
     }
-    while (this->bgmFmtData[local_c].name[0] != '\0')
+    while (this->bgmFmtData[fmtIdx].name[0] != '\0')
     {
-        if (ThStripExtension(this->bgmFmtData[local_c].name) == ThStripExtension(filename.c_str()))
+        if (ThStripExtension(this->bgmFmtData[fmtIdx].name) == ThStripExtension(filename.c_str()))
         {
             break;
         }
-        local_c++;
+        fmtIdx++;
     }
-    if (this->bgmFmtData[local_c].name[0] == '\0')
+    if (this->bgmFmtData[fmtIdx].name[0] == '\0')
     {
-        local_c = 0;
+        fmtIdx = 0;
     }
-    return local_c;
+    return fmtIdx;
 }
 
 ZunResult SoundPlayer::LoadSound(i32 idx, const char *path)
@@ -617,12 +645,12 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path)
     return ZUN_SUCCESS;
 }
 
-ZunResult SoundPlayer::LoadFmt(const char *param_1)
+ZunResult SoundPlayer::LoadFmt(const char *path)
 {
-    this->bgmFmtData = (ThBgmFormat *)FileSystem::OpenFile(param_1, 1);
+    this->bgmFmtData = (ThBgmFormat *)FileSystem::OpenFile(path, 1);
     if (!this->bgmFmtData)
     {
-        this->bgmFmtData = (ThBgmFormat *)FileSystem::OpenFile(param_1, 0);
+        this->bgmFmtData = (ThBgmFormat *)FileSystem::OpenFile(path, 0);
     }
     return this->bgmFmtData != NULL ? ZUN_SUCCESS : ZUN_ERROR;
 }
@@ -848,11 +876,11 @@ ZunResult SoundPlayer::InitSoundBuffers()
         return ZUN_ERROR;
     }
 
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < ARRAY_SIZE_SIGNED(this->soundQueue); i++)
     {
         this->soundQueue[i] = -1;
     }
-    for (i = 0; i < 30; i++)
+    for (i = 0; i < ARRAY_SIZE_SIGNED(g_SFXList); i++)
     {
         if (LoadSound(i, g_SFXList[i]) != ZUN_SUCCESS)
         {
@@ -861,7 +889,7 @@ ZunResult SoundPlayer::InitSoundBuffers()
             return ZUN_ERROR;
         }
     }
-    for (i = 0; (u32)i < 38; i++)
+    for (i = 0; i < ARRAY_SIZE(SOUND_BUFFER_IDX_VOL); i++)
     {
         i32 bufIdx = SOUND_BUFFER_IDX_VOL[i].bufferIdx;
 
@@ -893,7 +921,7 @@ void SoundPlayer::PlaySoundByIdx(i32 idx, u32 param_2)
     i32 i;
 
     iVar1 = SOUND_BUFFER_IDX_VOL[idx].field2_0x6;
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < ARRAY_SIZE_SIGNED(this->soundQueue); i++)
     {
         if (this->soundQueue[i] < 0)
         {
@@ -1095,7 +1123,7 @@ loop:
     default:
         goto loop_breakout;
     }
-    for (i = 0; i < 31; i++, commandCursor++)
+    for (i = 0; i < MAX_SOUND_COMMANDS; i++, commandCursor++)
     {
         if (commandCursor->opcode == 0)
         {
@@ -1116,7 +1144,7 @@ loop_breakout:
     }
     else
     {
-        for (i = 0; i < 5; i++)
+        for (i = 0; i < ARRAY_SIZE_SIGNED(this->soundQueue); i++)
         {
             if (this->soundQueue[i] < 0)
             {
@@ -1140,7 +1168,7 @@ loop_breakout:
 
 void SoundPlayer::PushCommand(AudioOpcode opcode, i32 arg1, const char *arg2)
 {
-    for (i32 i = 0; i < 31; i++)
+    for (i32 i = 0; i < MAX_SOUND_COMMANDS; i++)
     {
         if (this->commandQueue[i].opcode != 0)
         {
