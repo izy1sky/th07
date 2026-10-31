@@ -1645,6 +1645,11 @@ restart:
             case ECL_SET_TIMER_CALLBACK_THRESHOLD:
                 enemy->timerCallbackThreshold = GET_INT_VALUE(enemy, 0);
                 enemy->timer = 0;
+                // Midboss attacks start with only a time limit, no life threshold.
+                if (enemy->isBoss)
+                {
+                    PointDevice::RequestCheckpoint();
+                }
                 break;
             case ECL_SET_TIMER_CALLBACK_SUB:
                 enemy->timerCallbackSub = GET_INT_VALUE(enemy, 0);
