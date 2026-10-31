@@ -118,6 +118,7 @@ struct Snapshot
     std::vector<AnmVm> stageQuadVms;
     std::vector<i8> stageObjectFlags;
     i32 songIdx;
+    bool inBossAttack;
     // Where the music was, so a rewind takes the music back too.
     bool hasBgmCursor;
     u64 bgmCursor;
@@ -253,6 +254,9 @@ struct State
     bool checkpointForced;
     i32 forcedFrames;
     i32 framesSinceCheckpoint;
+    // Between a boss attack's start and end the periodic checkpoints stop, so
+    // dying always sends you back to the start of the attack.
+    bool inBossAttack;
     i32 songIdx;
     i32 retries;
     i32 checkpointMsgFrames;
@@ -590,6 +594,7 @@ void OnGameStart(bool isNewGame)
     g_State.checkpointForced = true;
     g_State.forcedFrames = 0;
     g_State.framesSinceCheckpoint = 0;
+    g_State.inBossAttack = false;
     // Stage 6 starts silent; every other stage starts on its first track.
     g_State.songIdx = g_GameManager.currentStage != PD_STAGE6 ? 0 : -1;
     g_State.checkpointMsgFrames = 0;
@@ -720,6 +725,7 @@ static void TakeCheckpoint()
         g_Snapshot.stageObjectFlags[i] = g_Stage.objects[i]->flags;
     }
     g_Snapshot.songIdx = g_State.songIdx;
+    g_Snapshot.inBossAttack = g_State.inBossAttack;
     g_Snapshot.hasBgmCursor = g_SoundPlayer.GetBgmCursor(&g_Snapshot.bgmCursor);
     g_Snapshot.valid = true;
 
@@ -778,6 +784,7 @@ static void RestoreCheckpoint()
         }
     }
     g_State.songIdx = g_Snapshot.songIdx;
+    g_State.inBossAttack = g_Snapshot.inBossAttack;
     if (g_Snapshot.hasBgmCursor)
     {
         // A track change above is only queued; start it before seeking.
@@ -824,10 +831,13 @@ void OnFrameStart()
         return;
     }
 
-    g_State.framesSinceCheckpoint++;
-    if (g_State.framesSinceCheckpoint >= PD_PERIODIC_INTERVAL)
+    if (!g_State.inBossAttack)
     {
-        g_State.checkpointWanted = true;
+        g_State.framesSinceCheckpoint++;
+        if (g_State.framesSinceCheckpoint >= PD_PERIODIC_INTERVAL)
+        {
+            g_State.checkpointWanted = true;
+        }
     }
 
     if (g_State.checkpointForced)
@@ -863,6 +873,7 @@ void RequestCheckpoint()
         return;
     }
     ForceCheckpoint();
+    g_State.inBossAttack = true;
     g_State.autotestBossSeen = true;
     PD_LOG("boss attack started, checkpoint requested");
 }
@@ -875,6 +886,7 @@ void OnBossAttackEnded()
         return;
     }
     ForceCheckpoint();
+    g_State.inBossAttack = false;
     PD_LOG("boss attack ended, checkpoint requested");
 }
 
