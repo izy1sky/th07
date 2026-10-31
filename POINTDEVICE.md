@@ -1,7 +1,6 @@
 # Pointdevice Mode (TH15-style checkpoints) for th07
 
-This branch (`feat/pointdevice-mode`, based on `web`) adds a Pointdevice Mode
-like the one in Touhou 15. When you get hit you go back to the last checkpoint
+This repository adds a Pointdevice Mode like the one in Touhou 15. When you get hit you go back to the last checkpoint
 instead of losing a life, as many times as you need.
 
 ## How it plays
@@ -78,7 +77,7 @@ You need: emsdk (activated), CMake 3.16+, Ninja (optional), Python 3, and
 ffmpeg (for the BGM conversion). From a fresh clone:
 
 ```bash
-git clone -b feat/pointdevice-mode https://github.com/izy1sky/th07.git
+git clone https://github.com/izy1sky/th07.git
 cd th07
 git submodule update --init --depth 1
 # SDL_ttf builds FreeType and PlutoSVG from its own submodules:
@@ -113,7 +112,7 @@ cmake --build build-web
 On Windows (PowerShell), the same steps:
 
 ```powershell
-git clone -b feat/pointdevice-mode https://github.com/izy1sky/th07.git
+git clone https://github.com/izy1sky/th07.git
 cd th07
 git submodule update --init --depth 1
 git -C vendored/SDL_ttf submodule update --init --depth 1 external/freetype external/harfbuzz external/plutosvg external/plutovg
