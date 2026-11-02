@@ -4,6 +4,7 @@
         <title>東方妖々夢　〜 Perfect Cherry Blossom</title>
         <meta charset="utf-8" />
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script src="https://s1.hdslb.com/bfs/seed/toy/app/sdk/toy-sdk.js"></script>
         <script src="toy-bridge.js"></script>
         <style>
@@ -288,6 +289,22 @@
                 color: #fa8;
                 margin-top: 4px;
             }
+
+            #hint {
+                position: fixed;
+                bottom: 8px;
+                left: 0;
+                right: 0;
+                text-align: center;
+                font: 12px -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+                color: #555;
+                pointer-events: none;
+            }
+            @media (pointer: coarse) {
+                #hint {
+                    display: none;
+                }
+            }
         </style>
     </head>
     <body>
@@ -308,6 +325,8 @@
             class="canvas"
             oncontextmenu="event.preventDefault()"
         ></canvas>
+        <div id="hint">方向键移动 · Z 射击 · X 炸弹 · Shift 低速 · Shift+Enter 切换全屏 · 点击画面后键盘生效</div>
+
         <div id="th07-prac" style="display:none">
             <div class="prac-header">
                 <span>练习面板（F9）</span>
@@ -425,9 +444,16 @@
                     loaderEl.style.display = "none";
                 }, 600);
             }
+            // SDL creates the WebGL context inside wasm, so wrapping getContext is the way in.
+            // It also asks for a low-latency context: `desynchronized` skips the browser's
+            // compositor queue (the browser's version of turning vsync off to cut input lag),
+            // and preserveDrawingBuffer stops the flicker that can bring.
             (function hookFirstFrame() {
                 var getContext = HTMLCanvasElement.prototype.getContext;
                 HTMLCanvasElement.prototype.getContext = function (type, attrs) {
+                    if (/webgl/.test(type)) {
+                        attrs = Object.assign({}, attrs, { desynchronized: true, preserveDrawingBuffer: true });
+                    }
                     var gl = getContext.call(this, type, attrs);
                     if (gl && /webgl/.test(type) && !gl.__firstFrameHooked) {
                         gl.__firstFrameHooked = true;
@@ -603,6 +629,23 @@
                 event.preventDefault();
                 event.returnValue = true;
             });
+
+            // Shift+Enter toggles browser fullscreen. Caught in the capture phase so it doesn't
+            // reach the game as a keypress.
+            window.addEventListener(
+                "keydown",
+                (e) => {
+                    if (e.key !== "Enter" || !e.shiftKey) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen?.().catch(() => {});
+                    } else {
+                        document.exitFullscreen?.().catch(() => {});
+                    }
+                },
+                true,
+            );
         </script>
 
         <script>
