@@ -16,18 +16,24 @@ instead of losing a life, as many times as you need.
   1UPs and extends give a bomb instead, and stage clears give no life bonus.
 - **Checkpoints** are taken automatically:
   - at the start of every stage,
-  - at the start of every boss and midboss attack (spell cards and non-spells),
-  - every 15 seconds during the stage, but only at a calm moment (no bullets
-    close to you, no lasers, no bomb or dialogue in progress).
+  - at the start and at the end of every boss and midboss attack (spell
+    cards and non-spells), so dying to the enemies after a midboss doesn't
+    send you back into its attack,
+  - every 15 seconds outside boss and midboss attacks, but only at a calm
+    moment (no bullets close to you, no lasers, no bomb or dialogue in
+    progress). During an attack there are none, so dying always sends you
+    back to the attack's start.
   "Checkpoint" flashes at the bottom of the play area when one is taken.
-- **When you get hit** the game freezes and asks:
-  - **Continue from checkpoint**: everything (score, power, bombs, cherry,
-    enemies, bullets, boss HP) goes back to the checkpoint, and you get exactly
-    2 seconds of invulnerability. The music goes back to where it was
-    at the checkpoint, too.
+- **When you get hit** the game freezes, the music stops, and it asks:
+  - **Continue from checkpoint**: the menu slides away and strips sweep
+    across the play area. Behind them everything (score, power, bombs, cherry,
+    enemies, bullets, boss HP) goes back to the checkpoint and the retry count
+    shows, then the strips sweep off, the music carries on from where it was
+    at the checkpoint, and you get exactly 2 seconds of invulnerability.
   - **Give up**: ends the run and shows the result screen.
-- **Pause (ESC, or four fingers on touch)** opens the Pointdevice pause menu:
-  - **Resume**
+- **Pause (ESC, or four fingers on touch)** stops the music and opens the
+  Pointdevice pause menu:
+  - **Resume**: the menu slides away and the music carries on
   - **Save and quit**: saves the stage you are on and the score, power,
     bombs, cherry and retry count that stage started with, then returns to the
     title screen. Not offered in practice runs.

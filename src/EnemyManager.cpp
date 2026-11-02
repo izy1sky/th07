@@ -9,6 +9,7 @@
 #include "Gui.hpp"
 #include "ItemManager.hpp"
 #include "Player.hpp"
+#include "PointDevice.hpp"
 #include "Rng.hpp"
 #include "SoundPlayer.hpp"
 #include "ZunResult.hpp"
@@ -388,6 +389,10 @@ i32 Enemy::HandleLifeCallback()
 
         if (this->life < this->lifeCallbackThreshold[i])
         {
+            if (this->isBoss)
+            {
+                PointDevice::OnBossAttackEnded();
+            }
             this->life = this->lifeCallbackThreshold[i];
             g_EclManager.CallEclSub(&this->currentContext, (i16)this->lifeCallbackSub[i]);
             this->lifeCallbackThreshold[i] = -1;
@@ -444,6 +449,10 @@ i32 Enemy::HandleTimerCallback()
     }
     if (this->timer >= this->timerCallbackThreshold)
     {
+        if (this->isBoss)
+        {
+            PointDevice::OnBossAttackEnded();
+        }
         max = 0;
         for (i = 0; i < ARRAY_SIZE_SIGNED(this->lifeCallbackThreshold); i++)
         {
@@ -917,6 +926,10 @@ u32 EnemyManager::OnUpdate(EnemyManager *arg)
             switch (enemy->deathType)
             {
             case ENEMY_DEATH_BOSS:
+                if (enemy->isBoss)
+                {
+                    PointDevice::OnBossAttackEnded();
+                }
                 enemy->life = 1;
                 enemy->canBeDamaged = 0;
                 enemy->deathType = ENEMY_DEATH_DESPAWN;
@@ -940,6 +953,7 @@ u32 EnemyManager::OnUpdate(EnemyManager *arg)
             END_BOSS:
                 if (enemy->isBoss)
                 {
+                    PointDevice::OnBossAttackEnded();
                     g_Gui.bossPresent = 0;
                     enemy->ResetEffectArray();
                 }

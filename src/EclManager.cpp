@@ -738,6 +738,7 @@ void EclManager::EndSpellcard()
 
     if (g_EnemyManager.spellcardInfo.isActive)
     {
+        PointDevice::OnBossAttackEnded();
         g_Gui.EndEnemySpellcard();
         if (g_EnemyManager.spellcardInfo.isActive == 1)
         {
