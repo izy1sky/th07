@@ -4,7 +4,7 @@
 #   powershell -ExecutionPolicy Bypass -File build-web.ps1 -Game C:\games\th07 -Emsdk C:\emsdk
 #
 # -Game    your game folder: th07.dat, thbgm.dat and msgothic.ttc; they are only read
-# -Emsdk   the emsdk folder; not needed if emsdk_env.ps1 already ran in this window
+# -Emsdk   the emsdk folder; not needed if it is in C:\emsdk or %USERPROFILE%\emsdk, or emsdk_env.ps1 already ran
 #
 # Needs CMake, Ninja, Python 3 and ffmpeg (for the music, converted once into build\web-bgm\):
 # winget install Kitware.CMake Ninja-build.Ninja Gyan.FFmpeg Python.Python.3.12
@@ -28,20 +28,37 @@ if ($Game -eq $Assets) { Fail "pass the folder with your original game files, no
 
 if ($Emsdk) {
     if (-not (Test-Path (Join-Path $Emsdk "emsdk_env.ps1"))) { Fail "$Emsdk has no emsdk_env.ps1" }
+} elseif (-not (Get-Command emcmake -ErrorAction SilentlyContinue)) {
+    # Not activated in this window: look in the usual places.
+    $Emsdk = @($env:EMSDK, (Join-Path $HOME "emsdk"), "C:\emsdk") |
+        Where-Object { $_ -and (Test-Path (Join-Path $_ "emsdk_env.ps1")) } | Select-Object -First 1
+}
+if ($Emsdk) {
     $env:EMSDK_QUIET = "1"
     & (Join-Path $Emsdk "emsdk_env.ps1") | Out-Null
 }
-if (-not (Get-Command emcmake -ErrorAction SilentlyContinue)) {
-    Fail "emcmake not found. Pass -Emsdk <emsdk folder>, or run <emsdk>\emsdk_env.ps1 in this window first"
-}
-if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) { Fail "cmake not found" }
-# emcmake on Windows builds with Ninja (or MinGW make); Visual Studio can't build for the web.
-if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) { Fail "ninja not found: winget install Ninja-build.Ninja" }
-$Python = (Get-Command py, python -ErrorAction SilentlyContinue | Select-Object -First 1).Source
-if (-not $Python) { Fail "Python not found" }
 
-foreach ($f in "th07.dat", "thbgm.dat", "msgothic.ttc") {
-    if (-not (Test-Path (Join-Path $Game $f))) { Fail "$Game\$f is missing" }
+# Report everything that is missing at once rather than one thing per run.
+$Problems = @()
+if (-not (Get-Command emcmake -ErrorAction SilentlyContinue)) {
+    $Problems += "emsdk not found: pass -Emsdk <emsdk folder>, or install it in C:\emsdk (https://emscripten.org/docs/getting_started/downloads.html)"
+}
+$Python = (Get-Command py, python -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+# emcmake on Windows builds with Ninja (or MinGW make); Visual Studio can't build for the web.
+$Tools = [ordered]@{ cmake = "Kitware.CMake"; ninja = "Ninja-build.Ninja"; ffmpeg = "Gyan.FFmpeg"; python = "Python.Python.3.12" }
+$Missing = @($Tools.Keys | Where-Object {
+    if ($_ -eq "python") { -not $Python } else { -not (Get-Command $_ -ErrorAction SilentlyContinue) }
+})
+if ($Missing) {
+    $Problems += "$($Missing -join ', ') not found: winget install $(($Missing | ForEach-Object { $Tools[$_] }) -join ' ')"
+}
+$MissingFiles = @("th07.dat", "thbgm.dat", "msgothic.ttc" | Where-Object { -not (Test-Path (Join-Path $Game $_)) })
+if ($MissingFiles) {
+    $Problems += "$Game has no $($MissingFiles -join ', '): pass the folder with your game files (th07.dat, thbgm.dat, msgothic.ttc)"
+}
+if ($Problems) {
+    foreach ($p in $Problems) { Write-Host "error: $p" -ForegroundColor Red }
+    exit 1
 }
 
 # The music conversion leaves a 16-byte thbgm.dat in assets\; a big one there is someone's

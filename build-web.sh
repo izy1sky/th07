@@ -4,8 +4,8 @@
 #   ./build-web.sh <game folder>
 #
 # <game folder> holds th07.dat, thbgm.dat and msgothic.ttc; they are only read. Needs emsdk
-# activated (source <emsdk>/emsdk_env.sh), CMake, python3 and ffmpeg (for the music, converted
-# once into build/web-bgm/). Ninja is used if installed. Windows: build-web.ps1.
+# (in ~/emsdk or $EMSDK, or already activated), CMake, python3 and ffmpeg (for the music,
+# converted once into build/web-bgm/). Ninja is used if installed. Windows: build-web.ps1.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,17 +16,37 @@ CACHE="$ROOT/build/web-bgm"
 
 die() { echo "error: $*" >&2; exit 1; }
 
-[ $# -eq 1 ] || die "usage: ./build-web.sh <game folder>"
+[ $# -eq 1 ] || die "usage: ./build-web.sh <game folder>   (the folder with th07.dat, thbgm.dat and msgothic.ttc)"
 GAME="$(cd "$1" 2>/dev/null && pwd)" || die "$1 is not a folder"
 [ "$GAME" != "$ASSETS" ] || die "pass the folder with your original game files, not assets/ (this script fills assets/)"
 
-command -v emcmake >/dev/null || die "emcmake not found. Activate emsdk first: source <emsdk>/emsdk_env.sh"
-command -v cmake >/dev/null || die "cmake not found"
-command -v python3 >/dev/null || die "python3 not found"
+# emsdk installed in $EMSDK or ~/emsdk but not activated in this terminal: activate it here.
+if ! command -v emcmake >/dev/null && [ -f "${EMSDK:-$HOME/emsdk}/emsdk_env.sh" ]; then
+  set +u
+  EMSDK_QUIET=1 source "${EMSDK:-$HOME/emsdk}/emsdk_env.sh" >/dev/null
+  set -u
+fi
 
-for f in th07.dat thbgm.dat msgothic.ttc; do
-  [ -f "$GAME/$f" ] || die "$GAME/$f is missing"
+# Report everything that is missing at once rather than one thing per run.
+problems=()
+command -v emcmake >/dev/null ||
+  problems+=("emsdk not found: install it in ~/emsdk (https://emscripten.org/docs/getting_started/downloads.html), or source <emsdk>/emsdk_env.sh first")
+missing_tools=()
+for tool in cmake python3 ffmpeg; do
+  command -v "$tool" >/dev/null || missing_tools+=("$tool")
 done
+[ ${#missing_tools[@]} -eq 0 ] ||
+  problems+=("${missing_tools[*]} not found: brew install ${missing_tools[*]} ninja   (Linux: your package manager)")
+missing_files=()
+for f in th07.dat thbgm.dat msgothic.ttc; do
+  [ -f "$GAME/$f" ] || missing_files+=("$f")
+done
+[ ${#missing_files[@]} -eq 0 ] ||
+  problems+=("$GAME has no ${missing_files[*]}: pass the folder with your game files (th07.dat, thbgm.dat, msgothic.ttc)")
+if [ ${#problems[@]} -gt 0 ]; then
+  for p in "${problems[@]}"; do echo "error: $p" >&2; done
+  exit 1
+fi
 
 # The music conversion leaves a 16-byte thbgm.dat in assets/; a big one there is someone's
 # original, which the copy below would delete.
