@@ -4,7 +4,7 @@
 
 ## 已就绪的部分
 
-- `toy-bridge.js`：Toy JS SDK 桥接层，随 web 构建输出到 `build-web/toy-bridge.js`。
+- `toy-bridge.js`：Toy JS SDK 桥接层，随 web 构建输出到 `build-web/toy-bridge.js`，`build-web.sh` 会把它和页面一起放进 `dist/`。
 - `resources/shell.html`：加载 `toy-sdk.js` 与 `toy-bridge.js`；非 Toy 环境自动降级。
 - `src/ResultScreen.cpp`：结算入口 `ResultScreen::RegisterChain` 通过 `EM_ASM`
   调用 `ToyBridge.onRunEnded(type, score, stage, difficulty, character, shotType)`。

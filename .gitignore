@@ -37,3 +37,7 @@ android/.idea
 android/local.properties
 android/app/.cxx
 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+
+# Output of build-web.sh / build-web.ps1 and build-windows.ps1
+dist/
+build-windows/

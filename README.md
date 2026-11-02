@@ -42,9 +42,13 @@ Put `th07.dat`, `thbgm.dat` and `msgothic.ttc` next to the built executable and 
 folder. SDL3, SDL3_image and SDL3_ttf are used from the system if all three are installed,
 otherwise from `vendored/` (clone with `--recursive`).
 
-**Web:** build with Emscripten, convert the music with `tools/convert_bgm_web.py`, and serve the
-output over HTTP with `serve-web.sh` or `serve-web.ps1`; opening `th07.html` directly doesn't
-work. Step-by-step instructions for macOS, Linux and Windows are in
+On Windows, `build-windows.ps1 -Game <game folder>` builds with Visual Studio and copies
+`th07.exe` and the SDL DLLs into the game folder.
+
+**Web:** with emsdk activated, `./build-web.sh <game folder>` (Windows: `build-web.ps1 -Game
+<game folder> -Emsdk <emsdk folder>`) converts the music, builds, and puts the page in `dist/`,
+ready to upload to Toy. Serve it with `serve-web.sh` or `serve-web.ps1`; opening `index.html`
+directly doesn't work. Details are in
 [POINTDEVICE.md](POINTDEVICE.md#building-for-the-web-bilibili-toy).
 
 Touch controls work on any touch screen: drag to move, hold a second finger to focus, tap the side

@@ -73,65 +73,40 @@ once, set "Window" in the in-game Option menu, or start from a `th07.cfg` with
 
 ## Building for the web (Bilibili Toy)
 
-You need: emsdk (activated), CMake 3.16+, Ninja (optional), Python 3, and
-ffmpeg (for the BGM conversion). From a fresh clone:
+You need emsdk, CMake, Python 3 and ffmpeg (for the music); Ninja is used if
+installed. Keep your game files (`th07.dat`, `thbgm.dat`, `msgothic.ttc`) in a
+folder of their own and pass that folder to the build script. It only reads
+them, fetches the vendored SDL libraries the first time, converts the music to
+MP3 once (into `build/web-bgm/`, so the package fits Toy's 140 MB limit) and
+puts the finished page in `dist/`.
+
+macOS / Linux:
 
 ```bash
 git clone https://github.com/izy1sky/th07.git
 cd th07
-git submodule update --init --depth 1
-# SDL_ttf builds FreeType and PlutoSVG from its own submodules:
-git -C vendored/SDL_ttf submodule update --init --depth 1 \
-    external/freetype external/harfbuzz external/plutosvg external/plutovg
-```
-
-Put the game files in `assets/` (git ignores this folder):
-
-```
-assets/th07.dat
-assets/thbgm.dat
-assets/msgothic.ttc
-```
-
-Convert the BGM to MP3 so the package fits Toy's 140 MB limit (this replaces
-`assets/thbgm.dat` with a stub, so keep your original copy elsewhere):
-
-```bash
-python3 tools/convert_bgm_web.py --bitrate 192k
-```
-
-Build and serve on macOS / Linux:
-
-```bash
-source ~/emsdk/emsdk_env.sh
-emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build-web
+source ~/emsdk/emsdk_env.sh          # wherever emsdk is installed
+./build-web.sh ~/games/th07
 ./serve-web.sh
 ```
 
-On Windows (PowerShell), the same steps:
+Windows (PowerShell):
 
 ```powershell
 git clone https://github.com/izy1sky/th07.git
 cd th07
-git submodule update --init --depth 1
-git -C vendored/SDL_ttf submodule update --init --depth 1 external/freetype external/harfbuzz external/plutosvg external/plutovg
-# put th07.dat, thbgm.dat and msgothic.ttc in assets\, then:
-py tools\convert_bgm_web.py --bitrate 192k
-& C:\emsdk\emsdk_env.ps1             # wherever emsdk is installed
-emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build-web
-.\serve-web.ps1
+powershell -ExecutionPolicy Bypass -File build-web.ps1 -Game C:\games\th07 -Emsdk C:\emsdk
+powershell -ExecutionPolicy Bypass -File serve-web.ps1
 ```
 
 The tools can be installed with winget if you don't have them:
 `winget install Kitware.CMake Ninja-build.Ninja Gyan.FFmpeg Python.Python.3.12`.
-If PowerShell refuses to run `.ps1` scripts, allow them for this window only:
-`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
 
-Open `http://localhost:8123/th07.html`. For Toy, upload the contents of
-`build-web/` the same way as before (`th07.html`, `th07.js`, `th07.wasm`,
-`th07.data`, `toy-bridge.js`).
+Open `http://localhost:8123/`. For Toy, upload everything in `dist/`
+(`index.html`, `th07.js`, `th07.wasm`, `th07.data`, `toy-bridge.js`).
+
+The page shows a loading screen while `th07.data` downloads, Shift+Enter
+toggles fullscreen, and touch screens use the game's own touch controls.
 
 ## Building for desktop (quickest way to test)
 
@@ -144,6 +119,14 @@ Then put `th07.dat`, `thbgm.dat` (the original, not the stub) and
 `msgothic.ttc` next to the built `th07` executable and run it from that folder.
 Uses the system SDL3 if found (`brew install sdl3 sdl3_image sdl3_ttf`),
 otherwise the vendored copies.
+
+On Windows, `build-windows.ps1` does all of this with Visual Studio 2022 or 2026
+("Desktop development with C++") and copies `th07.exe` and the SDL DLLs into
+your game folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build-windows.ps1 -Game C:\games\th07
+```
 
 ## Test helpers (desktop only)
 
