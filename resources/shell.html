@@ -7,21 +7,104 @@
         <script src="https://s1.hdslb.com/bfs/seed/toy/app/sdk/toy-sdk.js"></script>
         <script src="toy-bridge.js"></script>
         <style>
-            #progress {
-                height: 20px;
-                width: 300px;
-                padding-left: 0;
-                padding-right: 0;
-                margin-left: auto;
-                margin-right: auto;
-                display: block;
-                padding: 0;
-                margin: auto;
-                position: absolute;
-                top: 0;
-                bottom: 0;
-                left: 0;
-                right: 0;
+            html,
+            body {
+                margin: 0;
+                background: #000;
+            }
+
+            /* Loading screen: covers the black canvas until the game draws its first frame,
+               so a slow download doesn't look like a broken page. */
+            #loader {
+                position: fixed;
+                inset: 0;
+                z-index: 50;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: radial-gradient(ellipse at center, #2a0a1c 0%, #000 70%);
+                color: #ccc;
+                font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+                transition: opacity 0.5s;
+            }
+            #loader.gone {
+                opacity: 0;
+                pointer-events: none;
+            }
+            .ld-box {
+                width: min(420px, calc(100vw - 32px));
+                text-align: center;
+            }
+            .ld-title {
+                font-size: 30px;
+                letter-spacing: 0.12em;
+                color: #f6dbe6;
+                font-family: "Hiragino Mincho ProN", "Yu Mincho", "MS Mincho", serif;
+            }
+            .ld-sub {
+                margin-top: 4px;
+                font-size: 12px;
+                letter-spacing: 0.08em;
+                color: #a77089;
+            }
+            .ld-bar {
+                position: relative;
+                margin: 28px 0 12px;
+                height: 6px;
+                border-radius: 3px;
+                background: rgba(255, 255, 255, 0.1);
+                overflow: hidden;
+            }
+            #ld-fill {
+                height: 100%;
+                width: 0;
+                border-radius: 3px;
+                background: linear-gradient(90deg, #b03a6a, #f3a0c0);
+                transition: width 0.25s;
+            }
+            /* No measurable progress (engine start-up, first frame): a sliding band instead. */
+            .ld-bar.busy #ld-fill {
+                width: 30%;
+                animation: ld-slide 1.2s ease-in-out infinite;
+            }
+            @keyframes ld-slide {
+                from {
+                    transform: translateX(-100%);
+                }
+                to {
+                    transform: translateX(340%);
+                }
+            }
+            #ld-step {
+                font-size: 15px;
+                color: #e6e6e6;
+            }
+            #ld-detail {
+                margin-top: 6px;
+                min-height: 1.4em;
+                font-size: 12px;
+                color: #999;
+                font-variant-numeric: tabular-nums;
+            }
+            #ld-note {
+                margin-top: 18px;
+                font-size: 12px;
+                color: #777;
+                line-height: 1.6;
+            }
+            #loader.error #ld-step {
+                color: #ff8a8a;
+            }
+            #ld-retry {
+                margin-top: 16px;
+                padding: 8px 22px;
+                font: inherit;
+                font-size: 14px;
+                color: #fff;
+                background: #b03a6a;
+                border: 0;
+                border-radius: 4px;
+                cursor: pointer;
             }
 
             .canvas {
@@ -208,7 +291,17 @@
         </style>
     </head>
     <body>
-        <progress value="0" max="100" id="progress"></progress>
+        <div id="loader">
+            <div class="ld-box">
+                <div class="ld-title">東方妖々夢</div>
+                <div class="ld-sub">Perfect Cherry Blossom</div>
+                <div class="ld-bar busy"><div id="ld-fill"></div></div>
+                <div id="ld-step">正在连接…</div>
+                <div id="ld-detail"></div>
+                <div id="ld-note">首次打开需要下载游戏数据，网速慢时要等一会儿，页面没有卡住。</div>
+                <button id="ld-retry" type="button" hidden onclick="location.reload()">重新加载</button>
+            </div>
+        </div>
 
         <canvas
             id="canvas"
@@ -293,9 +386,100 @@
             <ul id="toy-history"></ul>
         </div>
         <script>
-            var progressElement = document.getElementById("progress");
+            // ---- Loading screen ----------------------------------------------------
+            var loaderEl = document.getElementById("loader");
+            var loader = {
+                bar: loaderEl.querySelector(".ld-bar"),
+                fill: document.getElementById("ld-fill"),
+                step: document.getElementById("ld-step"),
+                detail: document.getElementById("ld-detail"),
+                note: document.getElementById("ld-note"),
+                retry: document.getElementById("ld-retry"),
+            };
+            var mb = (bytes) => (bytes / 1048576).toFixed(1);
+            // fraction in 0..1 fills the bar; null shows the sliding "busy" band.
+            function showStep(text, fraction, detail) {
+                if (loaderEl.classList.contains("error")) return;
+                loader.step.textContent = text;
+                loader.bar.classList.toggle("busy", fraction == null);
+                loader.fill.style.width = fraction == null ? "" : (fraction * 100).toFixed(1) + "%";
+                if (detail !== undefined) loader.detail.textContent = detail;
+            }
+            function showError(text) {
+                showStep(text, 0, "");
+                loaderEl.classList.add("error");
+                loader.note.textContent =
+                    "可能是网络中断。点下面的按钮重试，问题还在的话按 F12 看 Console 里的报错。";
+                loader.retry.hidden = false;
+            }
+
+            // After the data is in, the game still has to start the engine, read the saves,
+            // unpack th07.dat and load the title screen before it draws anything, so the
+            // loading screen stays up until the first draw call instead of vanishing early.
+            var firstFrameSeen = false;
+            function onFirstFrame() {
+                if (firstFrameSeen) return;
+                firstFrameSeen = true;
+                loaderEl.classList.add("gone");
+                setTimeout(() => {
+                    loaderEl.style.display = "none";
+                }, 600);
+            }
+            (function hookFirstFrame() {
+                var getContext = HTMLCanvasElement.prototype.getContext;
+                HTMLCanvasElement.prototype.getContext = function (type, attrs) {
+                    var gl = getContext.call(this, type, attrs);
+                    if (gl && /webgl/.test(type) && !gl.__firstFrameHooked) {
+                        gl.__firstFrameHooked = true;
+                        ["drawArrays", "drawElements"].forEach((name) => {
+                            var draw = gl[name];
+                            gl[name] = function () {
+                                onFirstFrame();
+                                return draw.apply(this, arguments);
+                            };
+                        });
+                    }
+                    return gl;
+                };
+            })();
+
+            // Download progress comes from the runtime's "Downloading data... (loaded/total)"
+            // status texts; a 1 s timer turns it into a speed.
+            var download = { loaded: 0, total: 0, done: false, lastLoaded: 0, lastTick: 0, speed: 0 };
+            function showDownload() {
+                var fraction = download.total ? Math.min(download.loaded / download.total, 1) : 0;
+                var detail = `${mb(download.loaded)} / ${mb(download.total)} MB`;
+                if (download.speed > 0) detail += ` · ${mb(download.speed)} MB/s`;
+                showStep(`正在下载游戏数据 ${Math.floor(fraction * 100)}%`, fraction, detail);
+            }
+            var loaderTimer = setInterval(() => {
+                if (firstFrameSeen) return clearInterval(loaderTimer);
+                // --use-preload-cache: a later visit reads th07.data from IndexedDB instead.
+                var cached = Module.preloadResults && Module.preloadResults["th07.data"];
+                if (cached && cached.fromCache && !download.done) {
+                    download.done = true;
+                    showStep("正在从浏览器缓存读取游戏数据…", null, "");
+                }
+                if (!download.total || download.done) return;
+                var now = performance.now();
+                var recent = (download.loaded - download.lastLoaded) / ((now - download.lastTick) / 1000);
+                download.speed = download.speed ? download.speed * 0.6 + recent * 0.4 : recent;
+                download.lastLoaded = download.loaded;
+                download.lastTick = now;
+                showDownload();
+            }, 1000);
+            window.addEventListener("error", () => {
+                if (!firstFrameSeen) showError("游戏启动出错");
+            });
+            window.addEventListener("unhandledrejection", () => {
+                if (!firstFrameSeen) showError(download.done ? "游戏启动出错" : "游戏数据下载失败");
+            });
+
             var Module = {
                 preRun: [],
+                onAbort: () => {
+                    if (!firstFrameSeen) showError("游戏启动出错");
+                },
                 canvas: (() => {
                     var canvas = document.getElementById("canvas");
 
@@ -313,26 +497,30 @@
                     return canvas;
                 })(),
                 setStatus: (text) => {
-                    if (!Module.setStatus.last)
-                        Module.setStatus.last = { time: Date.now(), text: "" };
-                    if (text === Module.setStatus.last.text) return;
-                    var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
-                    var now = Date.now();
-                    if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
-                    Module.setStatus.last.time = now;
-                    Module.setStatus.last.text = text;
-                    if (m) {
-                        text = m[1];
-                        progressElement.value = parseInt(m[2]) * 100;
-                        progressElement.max = parseInt(m[4]) * 100;
-                        progressElement.hidden = false;
+                    if (download.done) return;
+                    var m = text.match(/\((\d+)\/(\d+)\)/);
+                    if (!m) {
+                        if (/Downloading/.test(text)) showStep("正在下载游戏数据…", 0, "");
+                        return;
+                    }
+                    if (!download.total) {
+                        download.lastTick = performance.now();
+                        loader.note.textContent =
+                            `首次打开需要下载约 ${Math.ceil(m[2] / 1048576)} MB 游戏数据，网速慢时要等一会儿，页面没有卡住。` +
+                            "之后再打开会直接从浏览器缓存读取。";
+                    }
+                    download.loaded = +m[1];
+                    download.total = +m[2];
+                    if (download.loaded >= download.total) {
+                        download.done = true;
+                        showStep("正在启动引擎…", null, "");
                     } else {
-                        progressElement.value = null;
-                        progressElement.max = null;
-                        progressElement.hidden = true;
+                        showDownload();
                     }
                 },
                 onRuntimeInitialized: () => {
+                    download.done = true;
+                    showStep("正在读取存档…", null, "");
                     try {
                         FS.mkdir("/savesth07");
                     } catch (e) {
@@ -343,9 +531,11 @@
                     FS.syncfs(true, function (e) {
                         if (e) {
                             console.error(e);
+                            showError("读取存档失败");
                             return;
                         }
                         console.log("idbfs initialized successfully");
+                        showStep("正在初始化游戏…", null, "");
                         if (Module.callMain) Module.callMain();
                     });
                 },
